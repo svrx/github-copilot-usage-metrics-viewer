@@ -41,6 +41,7 @@ class CopilotUsageAnalyzer {
 
     setupEventListeners() {
         document.getElementById('csvFileInput').addEventListener('change', (e) => this.handleFileUpload(e));
+        document.getElementById('csvFileInputCompact').addEventListener('change', (e) => this.handleFileUpload(e));
         document.getElementById('loadSampleData').addEventListener('click', () => this.loadSampleData());
         document.getElementById('dateRange').addEventListener('change', () => this.applyFilters());
         document.getElementById('userFilter').addEventListener('change', () => this.applyFilters());
@@ -176,6 +177,9 @@ class CopilotUsageAnalyzer {
                         this.hideLoadingIndicator();
                         this.processData();
                         
+                        // Hide upload section
+                        document.querySelector('.upload-section').classList.add('hidden');
+                        
                         // Show notification
                         this.showNotification('Data loaded from cache. Upload new data for fresh results.');
                     }, 500);
@@ -294,8 +298,8 @@ class CopilotUsageAnalyzer {
         this.showLoadingIndicator('Loading sample data...');
         
         try {
-            console.log('Attempting to load sample data from ./data_example.csv');
-            const response = await fetch('./data_example.csv');
+            console.log('Attempting to load sample data from ./new-format/premiumRequestUsageReport_1_18091ef401bb4b9592d0878b10718042.csv');
+            const response = await fetch('./new-format/premiumRequestUsageReport_1_18091ef401bb4b9592d0878b10718042.csv');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -306,8 +310,8 @@ class CopilotUsageAnalyzer {
             console.error('Error loading sample data:', error);
             // Try without the ./ prefix
             try {
-                console.log('Trying fallback path: data_example.csv');
-                const response = await fetch('data_example.csv');
+                console.log('Trying fallback path: new-format/premiumRequestUsageReport_1_18091ef401bb4b9592d0878b10718042.csv');
+                const response = await fetch('new-format/premiumRequestUsageReport_1_18091ef401bb4b9592d0878b10718042.csv');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -396,7 +400,7 @@ class CopilotUsageAnalyzer {
             if (startIndex === 1) {
                 console.log('Headers detected:', headers);
                 // Check if we have the expected headers
-                const requiredHeaders = ['Timestamp', 'User', 'Model', 'Requests Used', 'Exceeds Monthly Quota', 'Total Monthly Quota'];
+                const requiredHeaders = ['date', 'username', 'model', 'quantity', 'exceeds_quota', 'total_monthly_quota'];
                 const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
                 if (missingHeaders.length > 0) {
                     console.warn('Missing required headers:', missingHeaders);
@@ -420,22 +424,22 @@ class CopilotUsageAnalyzer {
                         }
                         
                         // Parse the data with correct field mapping
-                        const timestamp = new Date(row.Timestamp);
-                        if (!isNaN(timestamp.getTime()) && row.User && row.Model) {
+                        const timestamp = new Date(row.date);
+                        if (!isNaN(timestamp.getTime()) && row.username && row.model) {
                             this.rawData.push({
                                 timestamp: timestamp,
-                                user: row.User,
-                                model: row.Model,
-                                requests: parseFloat(row['Requests Used']) || 1,
-                                exceedsQuota: row['Exceeds Monthly Quota'] === 'TRUE' || row['Exceeds Monthly Quota'] === 'True',
-                                quota: parseInt(row['Total Monthly Quota']) || 300,
+                                user: row.username,
+                                model: row.model,
+                                requests: parseFloat(row.quantity) || 1,
+                                exceedsQuota: row.exceeds_quota === 'TRUE' || row.exceeds_quota === 'True' || row.exceeds_quota === 'true',
+                                quota: parseInt(row.total_monthly_quota) || 300,
                                 // Keep original data for export
                                 originalData: row
                             });
                         } else {
                             console.warn(`Skipping row ${i} due to invalid data:`, 
                                         `timestamp valid: ${!isNaN(timestamp.getTime())}, `,
-                                        `user: ${row.User}, model: ${row.Model}`);
+                                        `user: ${row.username}, model: ${row.model}`);
                         }
                     } else {
                         console.warn(`Skipping row ${i} due to column count mismatch. Expected ${headers.length}, got ${values.length}`);
@@ -627,6 +631,9 @@ class CopilotUsageAnalyzer {
         // Show dashboard
         document.getElementById('dashboard').style.display = 'block';
         document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' });
+        
+        // Hide upload section
+        document.querySelector('.upload-section').classList.add('hidden');
     }
     
     createSummaryDashboard() {
@@ -642,14 +649,8 @@ class CopilotUsageAnalyzer {
             // Create trend charts
             this.createTrendCharts();
             
-            // Create activity heatmap
-            this.createActivityHeatmapFull();
-            
             // Create model comparison chart
             this.createModelComparisonChart();
-            
-            // Create usage pattern charts
-            this.createUsagePatternCharts();
         } catch (error) {
             console.error('Error creating summary dashboard:', error);
         }
@@ -929,126 +930,6 @@ class CopilotUsageAnalyzer {
         localStorage.setItem('copilot-dashboard-config', JSON.stringify(this.dashboardConfig));
     }
     
-    createActivityHeatmapFull() {
-        const ctx = document.getElementById('activityHeatmapFull').getContext('2d');
-        
-        if (this.charts.activityHeatmapFull) {
-            this.charts.activityHeatmapFull.destroy();
-        }
-        
-        // Create day vs hour heatmap data
-        const heatmapData = [];
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const hourLabels = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-        
-        // Initialize the data structure
-        for (let day = 0; day < 7; day++) {
-            for (let hour = 0; hour < 24; hour++) {
-                heatmapData.push({
-                    x: hour,
-                    y: day,
-                    v: 0 // Value (request count)
-                });
-            }
-        }
-        
-        // Populate with actual data
-        this.filteredData.forEach(row => {
-            const day = row.timestamp.getDay();
-            const hour = row.timestamp.getHours();
-            const index = day * 24 + hour;
-            if (index < heatmapData.length) {
-                heatmapData[index].v += row.requests;
-            }
-        });
-        
-        // Find max value for color scaling
-        const maxValue = Math.max(...heatmapData.map(d => d.v));
-        
-        // Create color scale
-        const getColor = (value) => {
-            const intensity = maxValue > 0 ? value / maxValue : 0;
-            return `rgba(102, 126, 234, ${intensity.toFixed(2)})`;
-        };
-        
-        const isDarkMode = document.body.classList.contains('dark-mode');
-        const textColor = isDarkMode ? '#b8b8b8' : '#666';
-        
-        this.charts.activityHeatmapFull = new Chart(ctx, {
-            type: 'scatter',
-            data: {
-                datasets: [{
-                    data: heatmapData.map(d => ({
-                        x: d.x,
-                        y: d.y,
-                        value: d.v
-                    })),
-                    backgroundColor: heatmapData.map(d => getColor(d.v)),
-                    pointRadius: 15,
-                    pointHoverRadius: 18
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const point = context.raw;
-                                return `${dayNames[point.y]} at ${hourLabels[point.x]}: ${point.value.toLocaleString()} requests`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        min: -0.5,
-                        max: 23.5,
-                        ticks: {
-                            callback: function(value) {
-                                return hourLabels[value];
-                            },
-                            color: textColor,
-                            maxRotation: 0,
-                            autoSkip: true,
-                            autoSkipPadding: 20
-                        },
-                        grid: {
-                            display: false
-                        },
-                        title: {
-                            display: true,
-                            text: 'Hour of Day',
-                            color: textColor
-                        }
-                    },
-                    y: {
-                        min: -0.5,
-                        max: 6.5,
-                        ticks: {
-                            callback: function(value) {
-                                return dayNames[value];
-                            },
-                            color: textColor
-                        },
-                        grid: {
-                            display: false
-                        },
-                        title: {
-                            display: true,
-                            text: 'Day of Week',
-                            color: textColor
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
     createModelComparisonChart() {
         const ctx = document.getElementById('modelComparisonChart').getContext('2d');
         
@@ -1191,128 +1072,8 @@ class CopilotUsageAnalyzer {
     }
     
     createUsagePatternCharts() {
-        this.createDailyDistributionChart();
-        this.createHourlyDistributionChart();
         this.createTopModelsChart();
         this.createTopUsersChart();
-    }
-    
-    createDailyDistributionChart() {
-        const ctx = document.getElementById('dailyDistributionChart').getContext('2d');
-        
-        if (this.charts.dailyDistributionChart) {
-            this.charts.dailyDistributionChart.destroy();
-        }
-        
-        // Group data by day of week
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const dayData = new Array(7).fill(0);
-        
-        this.filteredData.forEach(row => {
-            const dayOfWeek = row.timestamp.getDay();
-            dayData[dayOfWeek] += row.requests;
-        });
-        
-        const isDarkMode = document.body.classList.contains('dark-mode');
-        const textColor = isDarkMode ? '#b8b8b8' : '#666';
-        
-        this.charts.dailyDistributionChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: dayNames,
-                datasets: [{
-                    label: 'Requests',
-                    data: dayData,
-                    backgroundColor: '#4285f4',
-                    borderColor: '#4285f4',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            color: textColor
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            color: textColor
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
-    createHourlyDistributionChart() {
-        const ctx = document.getElementById('hourlyDistributionChart').getContext('2d');
-        
-        if (this.charts.hourlyDistributionChart) {
-            this.charts.hourlyDistributionChart.destroy();
-        }
-        
-        // Group data by hour
-        const hourData = new Array(24).fill(0);
-        
-        this.filteredData.forEach(row => {
-            const hour = row.timestamp.getHours();
-            hourData[hour] += row.requests;
-        });
-        
-        const labels = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-        
-        const isDarkMode = document.body.classList.contains('dark-mode');
-        const textColor = isDarkMode ? '#b8b8b8' : '#666';
-        
-        this.charts.hourlyDistributionChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Requests',
-                    data: hourData,
-                    borderColor: '#ff6b6b',
-                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            color: textColor
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            color: textColor,
-                            maxRotation: 45,
-                            minRotation: 45,
-                            autoSkip: true,
-                            autoSkipPadding: 10
-                        }
-                    }
-                }
-            }
-        });
     }
     
     createTopModelsChart() {
@@ -1533,12 +1294,27 @@ class CopilotUsageAnalyzer {
         const totalModels = new Set(data.map(row => row.model)).size;
         const avgRequestsPerUser = totalUsers > 0 ? Math.round(totalRequests / totalUsers) : 0;
         
+        // Calculate median and std dev
+        const userRequestCounts = Object.values(
+            data.reduce((acc, row) => {
+                acc[row.user] = (acc[row.user] || 0) + row.requests;
+                return acc;
+            }, {})
+        ).sort((a, b) => a - b);
+        
+        const medianRequestsPerUser = userRequestCounts.length > 0 
+            ? userRequestCounts[Math.floor(userRequestCounts.length / 2)] 
+            : 0;
+        
+        const stdDevRequestsPerUser = userRequestCounts.length > 0
+            ? Math.round(Math.sqrt(
+                userRequestCounts.reduce((sum, val) => sum + Math.pow(val - avgRequestsPerUser, 2), 0) / userRequestCounts.length
+            ))
+            : 0;
+        
         // Calculate daily average (average requests per unique day)
         const uniqueDays = new Set(data.map(row => row.timestamp.toDateString())).size;
         const dailyAverage = uniqueDays > 0 ? Math.round(totalRequests / uniqueDays) : 0;
-        
-        // Calculate peak hour
-        const peakHour = this.calculatePeakHour(data);
         
         // Calculate weekly growth
         const weeklyGrowth = this.calculateWeeklyGrowth(data);
@@ -1563,8 +1339,9 @@ class CopilotUsageAnalyzer {
         document.getElementById('totalRequests').textContent = totalRequests.toLocaleString();
         document.getElementById('totalModels').textContent = totalModels.toLocaleString();
         document.getElementById('avgRequestsPerUser').textContent = avgRequestsPerUser.toLocaleString();
+        document.getElementById('medianRequestsPerUser').textContent = medianRequestsPerUser.toLocaleString();
+        document.getElementById('stdDevRequestsPerUser').textContent = stdDevRequestsPerUser.toLocaleString();
         document.getElementById('dailyAverage').textContent = dailyAverage.toLocaleString();
-        document.getElementById('peakHour').textContent = peakHour;
         document.getElementById('weeklyGrowth').textContent = weeklyGrowth;
         document.getElementById('mostActiveUser').textContent = mostActiveUser;
         document.getElementById('topModel').textContent = topModel.length > 20 ? topModel.substring(0, 17) + '...' : topModel;
@@ -1580,25 +1357,6 @@ class CopilotUsageAnalyzer {
     }
 
 
-
-    calculatePeakHour(data) {
-        const hourlyUsage = {};
-        data.forEach(row => {
-            const hour = row.timestamp.getHours();
-            hourlyUsage[hour] = (hourlyUsage[hour] || 0) + row.requests;
-        });
-
-        let peakHour = 0;
-        let maxUsage = 0;
-        Object.entries(hourlyUsage).forEach(([hour, usage]) => {
-            if (usage > maxUsage) {
-                maxUsage = usage;
-                peakHour = parseInt(hour);
-            }
-        });
-
-        return `${peakHour.toString().padStart(2, '0')}:00`;
-    }
 
     calculateWeeklyGrowth(data) {
         if (data.length === 0) return '0%';
@@ -1647,8 +1405,8 @@ class CopilotUsageAnalyzer {
         this.createUserChart();
         this.createModelTrendsChart();
         this.createDayOfWeekChart();
-        this.createHourlyUsageChart();
-        this.createActivityHeatmapChart();
+        this.createUserDistributionChart();
+        this.createUserDistributionBoxPlotChart();
         this.createCumulativeGrowthChart();
         this.createRequestSizeChart();
         this.createUserEfficiencyChart();
@@ -1950,6 +1708,9 @@ class CopilotUsageAnalyzer {
             dayData[dayOfWeek] += row.requests;
         });
         
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const textColor = isDarkMode ? '#b8b8b8' : '#666';
+        
         this.charts.dayOfWeek = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -1972,94 +1733,64 @@ class CopilotUsageAnalyzer {
                 },
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        ticks: {
+                            color: textColor
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: textColor
+                        }
                     }
                 }
             }
         });
     }
 
-    createHourlyUsageChart() {
-        const ctx = document.getElementById('hourlyUsageChart').getContext('2d');
+    createUserDistributionChart() {
+        const ctx = document.getElementById('userDistributionChart').getContext('2d');
         
-        if (this.charts.hourlyUsage) {
-            this.charts.hourlyUsage.destroy();
+        if (this.charts.userDistribution) {
+            this.charts.userDistribution.destroy();
         }
         
-        // Group data by hour
-        const hourData = new Array(24).fill(0);
-        
+        // Calculate requests per user
+        const userRequests = {};
         this.filteredData.forEach(row => {
-            const hour = row.timestamp.getHours();
-            hourData[hour] += row.requests;
+            userRequests[row.user] = (userRequests[row.user] || 0) + row.requests;
         });
         
-        const labels = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+        const userRequestsArray = Object.values(userRequests);
+        const avgRequests = userRequestsArray.reduce((a, b) => a + b, 0) / userRequestsArray.length;
+        const medianRequests = userRequestsArray.sort((a, b) => a - b)[Math.floor(userRequestsArray.length / 2)];
         
-        this.charts.hourlyUsage = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Requests',
-                    data: hourData,
-                    borderColor: '#ff6b6b',
-                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-
-    createActivityHeatmapChart() {
-        const ctx = document.getElementById('activityHeatmapChart').getContext('2d');
+        // Define distribution brackets
+        const brackets = [
+            { label: '1-25', min: 1, max: 25 },
+            { label: '26-100', min: 26, max: 100 },
+            { label: '101-250', min: 101, max: 250 },
+            { label: '251-500', min: 251, max: 500 },
+            { label: '500+', min: 501, max: Infinity }
+        ];
         
-        if (this.charts.activityHeatmap) {
-            this.charts.activityHeatmap.destroy();
-        }
-        
-        // Create day vs hour heatmap data
-        const heatmapData = {};
-        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        
-        this.filteredData.forEach(row => {
-            const day = row.timestamp.getDay();
-            const hour = row.timestamp.getHours();
-            const key = `${day}-${hour}`;
-            heatmapData[key] = (heatmapData[key] || 0) + row.requests;
+        // Count users in each bracket
+        const distribution = brackets.map(bracket => {
+            return userRequestsArray.filter(
+                count => count >= bracket.min && count <= bracket.max
+            ).length;
         });
         
-        // Convert to chart.js format (simplified bar chart since heatmap requires additional library)
-        const hourlyByDay = dayNames.map((_, dayIndex) => {
-            let dayTotal = 0;
-            for (let hour = 0; hour < 24; hour++) {
-                dayTotal += heatmapData[`${dayIndex}-${hour}`] || 0;
-            }
-            return dayTotal;
-        });
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const textColor = isDarkMode ? '#b8b8b8' : '#666';
         
-        this.charts.activityHeatmap = new Chart(ctx, {
+        this.charts.userDistribution = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: dayNames,
+                labels: brackets.map(b => b.label + ' requests'),
                 datasets: [{
-                    label: 'Total Daily Activity',
-                    data: hourlyByDay,
+                    label: 'Number of Users',
+                    data: distribution,
                     backgroundColor: '#34a853',
                     borderColor: '#34a853',
                     borderWidth: 1
@@ -2070,15 +1801,264 @@ class CopilotUsageAnalyzer {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: false
+                        display: true,
+                        position: 'bottom'
                     }
                 },
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        ticks: {
+                            color: textColor,
+                            stepSize: 1
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Users',
+                            color: textColor
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: textColor
+                        },
+                        title: {
+                            display: true,
+                            text: 'Request Volume Range',
+                            color: textColor
+                        }
                     }
                 }
             }
+        });
+    }
+
+    createUserDistributionBoxPlotChart() {
+        const ctx = document.getElementById('userDistributionBoxPlotChart').getContext('2d');
+        
+        if (this.charts.userDistributionBoxPlot) {
+            this.charts.userDistributionBoxPlot.destroy();
+        }
+        
+        // Calculate requests per user
+        const userRequests = {};
+        this.filteredData.forEach(row => {
+            userRequests[row.user] = (userRequests[row.user] || 0) + row.requests;
+        });
+        
+        const data = Object.values(userRequests).sort((a, b) => a - b);
+        
+        // Calculate statistics
+        const min = data[0];
+        const max = data[data.length - 1];
+        const q1 = data[Math.floor(data.length * 0.25)];
+        const q2 = data[Math.floor(data.length * 0.50)];
+        const q3 = data[Math.floor(data.length * 0.75)];
+        const q4 = data[data.length - 1];
+        const median = q2;
+        const mean = data.reduce((a, b) => a + b, 0) / data.length;
+        
+        // Calculate percentiles every 10%
+        const percentiles = {};
+        for (let p = 10; p <= 100; p += 10) {
+            percentiles[p] = data[Math.floor(data.length * (p / 100))];
+        }
+        
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        const textColor = isDarkMode ? '#b8b8b8' : '#666';
+        
+        // Plugin to draw equal-sized quartile boxes
+        const boxPlotPlugin = {
+            id: 'boxPlotRenderer',
+            afterDatasetsDraw(chart) {
+                const { ctx, chartArea: { left, top, width, height } } = chart;
+                const padding = 0; // Minimal padding for maximum space utilization
+                const yCenter = top + height / 2;
+                const boxHeight = 80;
+                const usableWidth = width - (padding * 2);
+                const boxWidth = usableWidth / 4; // 4 equal quartiles
+                
+                // Define quartile boxes
+                const quartiles = [
+                    { label: 'Q1', start: min, end: q1, color: 'rgba(100, 150, 255, 0.2)', border: 'rgba(100, 150, 255, 0.8)' },
+                    { label: 'Q2', start: q1, end: median, color: 'rgba(52, 168, 83, 0.2)', border: 'rgba(52, 168, 83, 0.8)' },
+                    { label: 'Q3', start: median, end: q3, color: 'rgba(52, 168, 83, 0.2)', border: 'rgba(52, 168, 83, 0.8)' },
+                    { label: 'Q4', start: q3, end: max, color: 'rgba(255, 152, 0, 0.2)', border: 'rgba(255, 152, 0, 0.8)' }
+                ];
+                
+                // Draw each quartile box
+                quartiles.forEach((q, i) => {
+                    const x = left + padding + i * boxWidth;
+                    
+                    // Fill
+                    ctx.fillStyle = q.color;
+                    ctx.fillRect(x, yCenter - boxHeight / 2, boxWidth, boxHeight);
+                    
+                    // Border only for Q2 and Q3 (middle 50%)
+                    if (i === 1 || i === 2) {
+                        ctx.strokeStyle = q.border;
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x, yCenter - boxHeight / 2, boxWidth, boxHeight);
+                    }
+                    
+                    // Label (quartile name)
+                    ctx.fillStyle = textColor;
+                    ctx.font = 'bold 14px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(q.label, x + boxWidth / 2, yCenter - boxHeight / 2 - 10);
+                    
+                    // Boundary values at bottom
+                    ctx.font = '12px Arial';
+                    ctx.fillText(Math.round(q.start), x + 5, yCenter + boxHeight / 2 + 20);
+                    if (i === 3) { // Last quartile, show end value too
+                        ctx.fillText(Math.round(q.end), x + boxWidth - 5, yCenter + boxHeight / 2 + 20);
+                    }
+                });
+                
+                // Draw median line through Q2/Q3
+                ctx.strokeStyle = '#ff6b6b';
+                ctx.lineWidth = 4;
+                const medianX = left + padding + 2 * boxWidth; // Between Q2 and Q3
+                ctx.beginPath();
+                ctx.moveTo(medianX, yCenter - boxHeight / 2);
+                ctx.lineTo(medianX, yCenter + boxHeight / 2);
+                ctx.stroke();
+                
+                // Draw mean indicator
+                // Calculate which quartile contains the mean
+                let meanQuartile = 0;
+                if (mean > q1) meanQuartile = 1;
+                if (mean > median) meanQuartile = 2;
+                if (mean > q3) meanQuartile = 3;
+                
+                const meanX = left + padding + meanQuartile * boxWidth + boxWidth / 2;
+                
+                ctx.fillStyle = '#4285f4';
+                ctx.strokeStyle = '#4285f4';
+                ctx.lineWidth = 2;
+                
+                // Draw star
+                const starSize = 10;
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+                    const radius = i % 2 === 0 ? starSize : starSize / 2;
+                    const px = meanX + radius * Math.cos(angle);
+                    const py = yCenter + radius * Math.sin(angle);
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+        };
+        
+        // Store quartile data for tooltip
+        const quartileData = {
+            q1: { start: min, end: q1, userCount: Math.floor(data.length * 0.25) },
+            q2: { start: q1, end: median, userCount: Math.floor(data.length * 0.25) },
+            q3: { start: median, end: q3, userCount: Math.floor(data.length * 0.25) },
+            q4: { start: q3, end: max, userCount: Math.ceil(data.length * 0.25) },
+            mean: mean,
+            median: median
+        };
+        
+        this.charts.userDistributionBoxPlot = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    // Create invisible points across the chart area for tooltip detection
+                    {
+                        label: 'Q1',
+                        data: [{x: 0.5, y: 0}],
+                        backgroundColor: 'transparent',
+                        borderColor: 'transparent',
+                        pointRadius: 40,
+                        pointHoverRadius: 40,
+                        quartile: 'q1'
+                    },
+                    {
+                        label: 'Q2',
+                        data: [{x: 1.5, y: 0}],
+                        backgroundColor: 'transparent',
+                        borderColor: 'transparent',
+                        pointRadius: 40,
+                        pointHoverRadius: 40,
+                        quartile: 'q2'
+                    },
+                    {
+                        label: 'Q3',
+                        data: [{x: 2.5, y: 0}],
+                        backgroundColor: 'transparent',
+                        borderColor: 'transparent',
+                        pointRadius: 40,
+                        pointHoverRadius: 40,
+                        quartile: 'q3'
+                    },
+                    {
+                        label: 'Q4',
+                        data: [{x: 3.5, y: 0}],
+                        backgroundColor: 'transparent',
+                        borderColor: 'transparent',
+                        pointRadius: 40,
+                        pointHoverRadius: 40,
+                        quartile: 'q4'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        displayColors: false,
+                        callbacks: {
+                            title: (context) => {
+                                const dataset = context[0].dataset;
+                                const q = dataset.quartile;
+                                if (q === 'q1') return 'Q1 - Bottom 25%';
+                                if (q === 'q2') return 'Q2 - 25th to 50th percentile';
+                                if (q === 'q3') return 'Q3 - 50th to 75th percentile';
+                                if (q === 'q4') return 'Q4 - Top 25%';
+                                return 'User Distribution';
+                            },
+                            label: (context) => {
+                                const dataset = context.dataset;
+                                const q = dataset.quartile;
+                                const qData = quartileData[q];
+                                return [
+                                    `Range: ${Math.round(qData.start)} - ${Math.round(qData.end)} requests`,
+                                    `Users: ${qData.userCount} (25%)`,
+                                    '',
+                                    `Overall Statistics:`,
+                                    `Median: ${Math.round(quartileData.median)} requests`,
+                                    `Mean: ${Math.round(quartileData.mean)} requests`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false,
+                        min: 0,
+                        max: 4
+                    },
+                    y: {
+                        display: false,
+                        min: -1,
+                        max: 1
+                    }
+                }
+            },
+            plugins: [boxPlotPlugin]
         });
     }
 

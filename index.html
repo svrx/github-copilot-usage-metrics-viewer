@@ -16,7 +16,16 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1> GitHub Copilot Usage Metrics Viewer</h1>
+            <div class="header-top">
+                <h1> GitHub Copilot Usage Metrics Viewer</h1>
+                <div class="theme-toggle">
+                    <input type="checkbox" id="darkModeToggle" class="toggle-checkbox">
+                    <label for="darkModeToggle" class="toggle-label">
+                        <i class="fas fa-sun"></i>
+                        <i class="fas fa-moon"></i>
+                    </label>
+                </div>
+            </div>
             <p>Analyze your GitHub Copilot usage patterns and trends</p>
         </header>
 
@@ -24,8 +33,6 @@
             <div class="upload-card">
                 <i class="fas fa-upload"></i>
                 <h3>Upload Your Data</h3>
-                <p> <a href="https://docs.github.com/en/copilot/managing-copilot/understanding-and-managing-copilot-usage/monitoring-your-copilot-usage-and-entitlements#downloading-a-monthly-usage-report" target="_blank">GitHub Copilot Usage Report Generation Documentation</a></p>
-                <p><strong>Please note:</strong> The usage report currently available for this is Enterprise level.<em>(Will keep reviewing individual accounts until correct data is available)</em></p>
                 <p>Upload your CSV file to analyze GitHub Copilot Premium usage requests and quota metrics.</p>
                 <p>All data stays in your browser.</p>
                 <input type="file" id="csvFileInput" accept=".csv" class="file-input">
@@ -43,13 +50,10 @@
             <div class="tab-navigation">
                 <button class="tab-btn active" data-tab="usage-dashboard">Usage Dashboard</button>
                 <button class="tab-btn" data-tab="quota-dashboard">Monthly Quota Analysis</button>
-                <div class="theme-toggle">
-                    <input type="checkbox" id="darkModeToggle" class="toggle-checkbox">
-                    <label for="darkModeToggle" class="toggle-label">
-                        <i class="fas fa-sun"></i>
-                        <i class="fas fa-moon"></i>
-                    </label>
-                </div>
+                <label for="csvFileInputCompact" class="upload-icon-btn" title="Upload New Data">
+                    <i class="fas fa-upload"></i>
+                </label>
+                <input type="file" id="csvFileInputCompact" accept=".csv" class="file-input">
             </div>
             
             <!-- Removed Summary Dashboard Tab -->
@@ -119,6 +123,24 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="medianRequestsPerUser">0</h3>
+                        <p>Median Requests/User</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-wave-square"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="stdDevRequestsPerUser">0</h3>
+                        <p>Std Dev Requests/User</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
                         <i class="fas fa-calendar-day"></i>
                     </div>
                     <div class="stat-content">
@@ -127,15 +149,6 @@
                     </div>
                 </div>
 
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 id="peakHour">--</h3>
-                        <p>Peak Usage Hour</p>
-                    </div>
-                </div>
                 <div class="stat-card">
                     <div class="stat-icon">
                         <i class="fas fa-chart-bar"></i>
@@ -167,16 +180,16 @@
 
             <div class="charts-grid">
                 <div class="chart-card">
-                    <h3>Requests Over Time</h3>
-                    <canvas id="timelineChart"></canvas>
+                    <h3>User Engagement Distribution</h3>
+                    <canvas id="userDistributionBoxPlotChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Users by Activity Level</h3>
+                    <canvas id="userDistributionChart"></canvas>
                 </div>
                 <div class="chart-card clickable" data-modal="model-distribution-modal">
                     <h3>Model Usage Distribution</h3>
                     <canvas id="modelChart"></canvas>
-                </div>
-                <div class="chart-card">
-                    <h3>Model Usage Bar Chart</h3>
-                    <canvas id="modelBarChart"></canvas>
                 </div>
                 <div class="chart-card">
                     <h3>Top Users by Requests</h3>
@@ -186,34 +199,36 @@
                     <h3>Model Trends Over Time</h3>
                     <canvas id="modelTrendsChart"></canvas>
                 </div>
+
                 <div class="chart-card">
                     <h3>Day of Week Usage</h3>
                     <canvas id="dayOfWeekChart"></canvas>
                 </div>
+
                 <div class="chart-card">
-                    <h3>Hourly Usage Pattern</h3>
-                    <canvas id="hourlyUsageChart"></canvas>
+                    <h3>Model Usage Bar Chart</h3>
+                    <canvas id="modelBarChart"></canvas>
                 </div>
 
                 <div class="chart-card">
-                    <h3>User Activity Heatmap</h3>
-                    <canvas id="activityHeatmapChart"></canvas>
+                    <h3>Model Performance Comparison</h3>
+                    <canvas id="modelPerformanceChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Request Size Distribution</h3>
+                    <canvas id="requestSizeChart"></canvas>
                 </div>
                 <div class="chart-card chart-card-large">
                     <h3>Cumulative Usage Growth</h3>
                     <canvas id="cumulativeGrowthChart"></canvas>
                 </div>
                 <div class="chart-card">
-                    <h3>Request Size Distribution</h3>
-                    <canvas id="requestSizeChart"></canvas>
-                </div>
-                <div class="chart-card">
                     <h3>User Efficiency Analysis</h3>
                     <canvas id="userEfficiencyChart"></canvas>
                 </div>
                 <div class="chart-card">
-                    <h3>Model Performance Comparison</h3>
-                    <canvas id="modelPerformanceChart"></canvas>
+                    <h3>Requests Over Time</h3>
+                    <canvas id="timelineChart"></canvas>
                 </div>
             </div>
 

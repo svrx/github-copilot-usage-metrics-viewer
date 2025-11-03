@@ -59,11 +59,11 @@ The sample data includes:
 ## 📋 Getting Your Data
 Ready to see your own Copilot insights? Here's how to get your data in 3 simple steps:
 
-1. Export your GitHub Copilot usage metrics as a CSV file.
+1. Export your GitHub Copilot Premium Request Usage Report as a CSV file from your GitHub organization settings.
 2. Ensure the file matches the expected format:
    ```csv
-   Timestamp,User,Model,Requests Used,Exceeds Monthly Quota,Total Monthly Quota
-   2025-06-18T10:43:41.8378480Z,User41,gpt-4o-2024-11-20,1,FALSE,Unlimited
+   date,username,product,sku,model,quantity,unit_type,applied_cost_per_quantity,gross_amount,discount_amount,net_amount,exceeds_quota,total_monthly_quota,organization,cost_center_name
+   2025-10-01,user1,copilot,copilot_requests_o1_preview,o1-preview,1,request,0.04,0.04,0,0.04,false,1000,YourOrg,
    ```
 3. Load the file into the dashboard by clicking "📁 Load Data".
 
