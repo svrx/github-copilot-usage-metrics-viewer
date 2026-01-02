@@ -16,6 +16,7 @@ export class ComparisonDashboard {
         this.modalManager = new ModalManager();
         
         this.monthsData = {};
+        this.selectedMonths = new Set();
         this.comparisonMetrics = [];
     }
 
@@ -25,7 +26,7 @@ export class ComparisonDashboard {
     loadData() {
         const monthsList = this.storageService.getMonthsList();
         
-        if (monthsList.length < 2) {
+        if (monthsList.length < 1) {
             this.showNoDataMessage();
             return;
         }
@@ -43,8 +44,72 @@ export class ComparisonDashboard {
             }
         });
 
+        if (Object.keys(this.monthsData).length < 2) {
+            this.showNoDataMessage();
+            return;
+        }
+
+        // Initialize with all months selected
+        this.selectedMonths = new Set(Object.keys(this.monthsData));
+
+        this.renderMonthCheckboxes();
         this.calculateComparisonMetrics();
         this.updateDashboard();
+    }
+
+    /**
+     * Render month selection checkboxes
+     */
+    renderMonthCheckboxes() {
+        const container = document.getElementById('comparisonMonthCheckboxes');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        const monthKeys = Object.keys(this.monthsData).sort().reverse(); // Most recent first
+        
+        monthKeys.forEach(key => {
+            const month = this.monthsData[key];
+            const checkbox = document.createElement('label');
+            checkbox.className = 'month-checkbox';
+            checkbox.innerHTML = `
+                <input type="checkbox" value="${key}" ${this.selectedMonths.has(key) ? 'checked' : ''}>
+                <span>${month.label}</span>
+            `;
+            
+            checkbox.querySelector('input').addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.selectedMonths.add(key);
+                } else {
+                    this.selectedMonths.delete(key);
+                }
+                
+                // Ensure at least one month is selected
+                if (this.selectedMonths.size === 0) {
+                    e.target.checked = true;
+                    this.selectedMonths.add(key);
+                    return;
+                }
+                
+                this.calculateComparisonMetrics();
+                this.updateDashboard();
+            });
+            
+            container.appendChild(checkbox);
+        });
+    }
+
+    /**
+     * Get filtered months data based on selection
+     */
+    getFilteredMonthsData() {
+        const filtered = {};
+        this.selectedMonths.forEach(key => {
+            if (this.monthsData[key]) {
+                filtered[key] = this.monthsData[key];
+            }
+        });
+        return filtered;
     }
 
     /**
@@ -56,9 +121,25 @@ export class ComparisonDashboard {
         const totalModels = new Set(data.map(row => row.model)).size;
         const avgRequestsPerUser = totalUsers > 0 ? totalRequests / totalUsers : 0;
         
-        // Calculate active days
-        const uniqueDays = new Set(data.map(row => row.timestamp.toDateString())).size;
+        // Calculate active days and DAU (excluding weekends)
+        const days = {};
+        data.forEach(row => {
+            // Exclude weekends (0 = Sunday, 6 = Saturday)
+            const dayOfWeek = row.timestamp.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) return;
+
+            const day = row.timestamp.toDateString();
+            if (!days[day]) days[day] = new Set();
+            days[day].add(row.user);
+        });
+        const uniqueDays = Object.keys(days).length;
+        const totalDailyActiveUsers = Object.values(days).reduce((sum, users) => sum + users.size, 0);
+        const avgDailyActiveUsers = uniqueDays > 0 ? totalDailyActiveUsers / uniqueDays : 0;
         const avgRequestsPerDay = uniqueDays > 0 ? totalRequests / uniqueDays : 0;
+
+        // Calculate Cost
+        const totalCost = data.reduce((sum, row) => sum + (parseFloat(row.net_amount) || 0), 0);
+        const avgCostPerUser = totalUsers > 0 ? totalCost / totalUsers : 0;
         
         // Calculate quota usage
         const quotaData = this.dataService.processQuotaData(data, 1);
@@ -66,6 +147,8 @@ export class ComparisonDashboard {
             ? quotaData.reduce((sum, u) => sum + u.usagePercentage, 0) / quotaData.length
             : 0;
         const usersOver80Quota = quotaData.filter(u => u.usagePercentage >= 80).length;
+        const usersOverQuota = quotaData.filter(u => u.usagePercentage >= 100).length;
+        const percentOverQuota = totalUsers > 0 ? (usersOverQuota / totalUsers) * 100 : 0;
         
         // Model distribution
         const modelStats = DataAggregation.groupBy(data, row => row.model);
@@ -84,8 +167,12 @@ export class ComparisonDashboard {
             totalModels,
             avgRequestsPerUser,
             avgRequestsPerDay,
+            avgDailyActiveUsers,
+            avgCostPerUser,
             avgQuotaUsage,
             usersOver80Quota,
+            usersOverQuota,
+            percentOverQuota,
             topModels,
             uniqueDays,
             heavyEngagement,
@@ -99,14 +186,15 @@ export class ComparisonDashboard {
      * Calculate comparison metrics (growth rates, etc.)
      */
     calculateComparisonMetrics() {
-        const monthKeys = Object.keys(this.monthsData).sort();
+        const filteredData = this.getFilteredMonthsData();
+        const monthKeys = Object.keys(filteredData).sort();
         this.comparisonMetrics = [];
 
         for (let i = 1; i < monthKeys.length; i++) {
             const prevKey = monthKeys[i - 1];
             const currKey = monthKeys[i];
-            const prev = this.monthsData[prevKey].metrics;
-            const curr = this.monthsData[currKey].metrics;
+            const prev = filteredData[prevKey].metrics;
+            const curr = filteredData[currKey].metrics;
 
             const growthRate = (metric, prevVal, currVal) => {
                 if (prevVal === 0) return currVal > 0 ? 100 : 0;
@@ -115,11 +203,12 @@ export class ComparisonDashboard {
 
             this.comparisonMetrics.push({
                 month: currKey,
-                label: this.monthsData[currKey].label,
+                label: filteredData[currKey].label,
                 userGrowth: growthRate('users', prev.totalUsers, curr.totalUsers),
                 requestGrowth: growthRate('requests', prev.totalRequests, curr.totalRequests),
                 newUsers: curr.totalUsers - prev.totalUsers,
-                avgRequestsPerUserGrowth: growthRate('avgReq', prev.avgRequestsPerUser, curr.avgRequestsPerUser)
+                avgDailyActiveUsersGrowth: growthRate('avgDAU', prev.avgDailyActiveUsers, curr.avgDailyActiveUsers),
+                avgCostPerUserGrowth: growthRate('avgCost', prev.avgCostPerUser, curr.avgCostPerUser)
             });
         }
     }
@@ -137,16 +226,22 @@ export class ComparisonDashboard {
      * Update statistics cards with growth indicators
      */
     updateStatCards() {
-        const monthKeys = Object.keys(this.monthsData).sort();
-        if (monthKeys.length < 2) return;
+        const filteredData = this.getFilteredMonthsData();
+        const monthKeys = Object.keys(filteredData).sort();
+        if (monthKeys.length < 1) return;
 
         const latest = monthKeys[monthKeys.length - 1];
-        const previous = monthKeys[monthKeys.length - 2];
-        
-        const latestMetrics = this.monthsData[latest].metrics;
-        const previousMetrics = this.monthsData[previous].metrics;
+        const latestMetrics = filteredData[latest].metrics;
+
+        // Calculate growth from previous selected month if available
+        let previousMetrics = null;
+        if (monthKeys.length >= 2) {
+            const previous = monthKeys[monthKeys.length - 2];
+            previousMetrics = filteredData[previous].metrics;
+        }
 
         const calculateGrowth = (curr, prev) => {
+            if (!prev) return '-';
             if (prev === 0) return curr > 0 ? '+100%' : '0%';
             const growth = ((curr - prev) / prev) * 100;
             return (growth >= 0 ? '+' : '') + growth.toFixed(1) + '%';
@@ -154,16 +249,16 @@ export class ComparisonDashboard {
 
         // Update stat cards
         this.updateStatCard('compTotalUsers', latestMetrics.totalUsers);
-        this.updateStatCard('compUserGrowth', calculateGrowth(latestMetrics.totalUsers, previousMetrics.totalUsers));
+        this.updateStatCard('compUserGrowth', previousMetrics ? calculateGrowth(latestMetrics.totalUsers, previousMetrics.totalUsers) : '-');
         
         this.updateStatCard('compTotalRequests', latestMetrics.totalRequests);
-        this.updateStatCard('compRequestGrowth', calculateGrowth(latestMetrics.totalRequests, previousMetrics.totalRequests));
+        this.updateStatCard('compRequestGrowth', previousMetrics ? calculateGrowth(latestMetrics.totalRequests, previousMetrics.totalRequests) : '-');
         
-        this.updateStatCard('compAvgRequestsPerUser', Math.round(latestMetrics.avgRequestsPerUser));
-        this.updateStatCard('compAvgGrowth', calculateGrowth(latestMetrics.avgRequestsPerUser, previousMetrics.avgRequestsPerUser));
+        this.updateStatCard('compAvgDailyActiveUsers', Math.round(latestMetrics.avgDailyActiveUsers));
+        this.updateStatCard('compAvgDAUGrowth', previousMetrics ? calculateGrowth(latestMetrics.avgDailyActiveUsers, previousMetrics.avgDailyActiveUsers) : '-');
         
         this.updateStatCard('compAvgQuotaUsage', latestMetrics.avgQuotaUsage.toFixed(1) + '%');
-        this.updateStatCard('compQuotaGrowth', calculateGrowth(latestMetrics.avgQuotaUsage, previousMetrics.avgQuotaUsage));
+        this.updateStatCard('compQuotaGrowth', previousMetrics ? calculateGrowth(latestMetrics.avgQuotaUsage, previousMetrics.avgQuotaUsage) : '-');
     }
 
     /**
@@ -199,15 +294,16 @@ export class ComparisonDashboard {
         this.createUserEngagementDistributionChart();
         this.createModelUsageEvolutionChart();
         this.createQuotaUtilizationTrendChart();
-        this.createAvgRequestsPerUserChart();
+        this.createAvgDailyActiveUsersChart();
     }
 
     /**
      * Create user adoption trend chart (quartiles over time)
      */
     createUserAdoptionTrendChart() {
-        const monthKeys = Object.keys(this.monthsData).sort();
-        const labels = monthKeys.map(key => this.monthsData[key].label);
+        const filteredData = this.getFilteredMonthsData();
+        const monthKeys = Object.keys(filteredData).sort();
+        const labels = monthKeys.map(key => filteredData[key].label);
         
         // Calculate quartiles and extremes for each month
         const minValues = [];
@@ -218,7 +314,7 @@ export class ComparisonDashboard {
         const avgValues = [];
         
         monthKeys.forEach(key => {
-            const data = this.monthsData[key].data;
+            const data = filteredData[key].data;
             const userRequestCounts = Object.values(DataAggregation.calculateRequestsPerUser(data)).sort((a, b) => a - b);
             
             if (userRequestCounts.length > 0) {
@@ -231,7 +327,7 @@ export class ComparisonDashboard {
                 q2Values.push(userRequestCounts[q2Index]);
                 q3Values.push(userRequestCounts[q3Index]);
                 maxValues.push(userRequestCounts[userRequestCounts.length - 1]);
-                avgValues.push(this.monthsData[key].metrics.avgRequestsPerUser);
+                avgValues.push(filteredData[key].metrics.avgRequestsPerUser);
             } else {
                 minValues.push(0);
                 q1Values.push(0);
@@ -339,9 +435,10 @@ export class ComparisonDashboard {
      * Create request volume comparison chart
      */
     createRequestVolumeChart() {
-        const monthKeys = Object.keys(this.monthsData).sort();
-        const labels = monthKeys.map(key => this.monthsData[key].label);
-        const values = monthKeys.map(key => this.monthsData[key].metrics.totalRequests);
+        const filteredData = this.getFilteredMonthsData();
+        const monthKeys = Object.keys(filteredData).sort();
+        const labels = monthKeys.map(key => filteredData[key].label);
+        const values = monthKeys.map(key => filteredData[key].metrics.totalRequests);
 
         this.chartService.createBarChart('compRequestVolumeChart', {
             labels: labels,
@@ -354,50 +451,65 @@ export class ComparisonDashboard {
     }
 
     /**
-     * Create average requests per user chart
+     * Create average daily active users chart
      */
-    createAvgRequestsPerUserChart() {
-        const monthKeys = Object.keys(this.monthsData).sort();
-        const labels = monthKeys.map(key => this.monthsData[key].label);
-        const values = monthKeys.map(key => this.monthsData[key].metrics.avgRequestsPerUser);
+    createAvgDailyActiveUsersChart() {
+        const filteredData = this.getFilteredMonthsData();
+        const monthKeys = Object.keys(filteredData).sort();
+        const labels = monthKeys.map(key => filteredData[key].label);
+        const values = monthKeys.map(key => filteredData[key].metrics.avgDailyActiveUsers);
 
-        this.chartService.createLineChart('compAvgRequestsChart', {
+        this.chartService.createLineChart('compAvgDailyActiveUsersChart', {
             labels: labels,
             datasets: [{
-                label: 'Avg Requests per User',
+                label: 'Avg Daily Active Users',
                 data: values,
                 borderColor: COLOR_PALETTES.info,
                 backgroundColor: `${COLOR_PALETTES.info}20`,
                 fill: true,
                 tension: 0.4
             }]
-        }, { hideLegend: true });
+        }, { 
+            hideLegend: true,
+            customOptions: {
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Average Daily Active Users (Excluding Weekends)'
+                    }
+                }
+            }
+        });
     }
 
     /**
      * Create model usage evolution chart (stacked area)
      */
     createModelUsageEvolutionChart() {
-        const monthKeys = Object.keys(this.monthsData).sort();
-        const labels = monthKeys.map(key => this.monthsData[key].label);
+        const filteredData = this.getFilteredMonthsData();
+        const monthKeys = Object.keys(filteredData).sort();
+        const labels = monthKeys.map(key => filteredData[key].label);
         
         // Get all unique models across all months
         const allModels = new Set();
         monthKeys.forEach(key => {
-            this.monthsData[key].metrics.topModels.forEach(([model]) => allModels.add(model));
+            filteredData[key].metrics.topModels.forEach(([model]) => allModels.add(model));
         });
         
         // Filter models with more than 50 requests in any month
         const qualifyingModels = [];
         allModels.forEach(model => {
             const hasHighUsage = monthKeys.some(key => {
-                const modelData = this.monthsData[key].metrics.topModels.find(([m]) => m === model);
+                const modelData = filteredData[key].metrics.topModels.find(([m]) => m === model);
                 return modelData && modelData[1] > 50;
             });
             if (hasHighUsage) {
                 // Calculate total for sorting
                 const total = monthKeys.reduce((sum, key) => {
-                    const modelData = this.monthsData[key].metrics.topModels.find(([m]) => m === model);
+                    const modelData = filteredData[key].metrics.topModels.find(([m]) => m === model);
                     return sum + (modelData ? modelData[1] : 0);
                 }, 0);
                 qualifyingModels.push({ model, total });
@@ -413,7 +525,7 @@ export class ComparisonDashboard {
         const colors = this.chartService.generateColors(selectedModels.length);
         const datasets = selectedModels.map((model, idx) => {
             const data = monthKeys.map(key => {
-                const modelData = this.monthsData[key].metrics.topModels.find(([m]) => m === model);
+                const modelData = filteredData[key].metrics.topModels.find(([m]) => m === model);
                 return modelData ? modelData[1] : 0;
             });
             
@@ -451,23 +563,47 @@ export class ComparisonDashboard {
      * Create quota utilization trend chart
      */
     createQuotaUtilizationTrendChart() {
-        const monthKeys = Object.keys(this.monthsData).sort();
-        const labels = monthKeys.map(key => this.monthsData[key].label);
-        const avgUsage = monthKeys.map(key => this.monthsData[key].metrics.avgQuotaUsage);
+        const filteredData = this.getFilteredMonthsData();
+        const monthKeys = Object.keys(filteredData).sort();
+        const labels = monthKeys.map(key => filteredData[key].label);
+        const avgUsage = monthKeys.map(key => filteredData[key].metrics.avgQuotaUsage);
+        const percentOverQuota = monthKeys.map(key => filteredData[key].metrics.percentOverQuota);
 
         this.chartService.createLineChart('compQuotaTrendChart', {
             labels: labels,
-            datasets: [{
-                label: 'Avg Quota Usage %',
-                data: avgUsage,
-                borderColor: COLOR_PALETTES.warning,
-                backgroundColor: `${COLOR_PALETTES.warning}20`,
-                fill: true,
-                tension: 0.4
-            }]
+            datasets: [
+                {
+                    label: 'Avg Quota Usage %',
+                    data: avgUsage,
+                    borderColor: COLOR_PALETTES.warning,
+                    backgroundColor: `${COLOR_PALETTES.warning}20`,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2
+                },
+                {
+                    label: '% Users Over Quota',
+                    data: percentOverQuota,
+                    borderColor: COLOR_PALETTES.danger,
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    borderDash: [8, 4]
+                }
+            ]
         }, {
-            hideLegend: true,
-            yAxisCallback: (value) => value.toFixed(0) + '%'
+            customOptions: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: (value) => value.toFixed(0) + '%'
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -475,13 +611,14 @@ export class ComparisonDashboard {
      * Create user engagement distribution chart
      */
     createUserEngagementDistributionChart() {
-        const monthKeys = Object.keys(this.monthsData).sort();
-        const labels = monthKeys.map(key => this.monthsData[key].label);
+        const filteredData = this.getFilteredMonthsData();
+        const monthKeys = Object.keys(filteredData).sort();
+        const labels = monthKeys.map(key => filteredData[key].label);
         
-        const heavyEngagement = monthKeys.map(key => this.monthsData[key].metrics.heavyEngagement);
-        const significantEngagement = monthKeys.map(key => this.monthsData[key].metrics.significantEngagement);
-        const modestEngagement = monthKeys.map(key => this.monthsData[key].metrics.modestEngagement);
-        const lowEngagement = monthKeys.map(key => this.monthsData[key].metrics.lowEngagement);
+        const heavyEngagement = monthKeys.map(key => filteredData[key].metrics.heavyEngagement);
+        const significantEngagement = monthKeys.map(key => filteredData[key].metrics.significantEngagement);
+        const modestEngagement = monthKeys.map(key => filteredData[key].metrics.modestEngagement);
+        const lowEngagement = monthKeys.map(key => filteredData[key].metrics.lowEngagement);
 
         // Use line chart to show progression trends
         this.chartService.createLineChart('compEngagementChart', {

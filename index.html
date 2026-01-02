@@ -26,7 +26,7 @@
                     </label>
                 </div>
             </div>
-            <p>Analyze your GitHub Copilot usage patterns and trends</p>
+            <!-- <p>Analyze your GitHub Copilot usage patterns and trends</p> -->
         </header>
 
         <div class="upload-section">
@@ -49,8 +49,8 @@
             <!-- Tab Navigation -->
             <div class="tab-navigation">
                 <button class="tab-btn active" data-tab="usage-dashboard">Usage Dashboard</button>
-                <button class="tab-btn" data-tab="quota-dashboard">Monthly Quota Analysis</button>
-                <button class="tab-btn" data-tab="comparison-dashboard">Month Comparison</button>
+                <button class="tab-btn" data-tab="quota-dashboard">Quota Analysis</button>
+                <button class="tab-btn" data-tab="comparison-dashboard">Comparison Dashboard</button>
                 <label for="csvFileInputCompact" class="upload-icon-btn" title="Upload New Data">
                     <i class="fas fa-upload"></i>
                 </label>
@@ -331,10 +331,6 @@
                         <h3>Request Breakdown by Quota Status</h3>
                         <canvas id="quotaBreakdownChart"></canvas>
                     </div>
-                    <div class="chart-card chart-card-large">
-                        <h3>User Quota Usage Over Time</h3>
-                        <canvas id="quotaTimelineChart"></canvas>
-                    </div>
                 </div>
 
                 <div class="data-table-section">
@@ -366,10 +362,10 @@
         </div>
 
         <!-- Month Comparison Dashboard Tab -->
-        <div id="comparison-dashboard" class="tab-content">
-            <div class="comparison-intro">
-                <h2><i class="fas fa-chart-line"></i> Month-to-Month Comparison</h2>
-                <p>Track adoption progress, usage trends, and model preferences across multiple months</p>
+        <div id="comparison-dashboard" class="tab-content">            
+
+            <div class="filters comparison-filters">
+                <div id="comparisonMonthCheckboxes" class="month-checkboxes"></div>
             </div>
 
             <div class="stats-grid">
@@ -398,9 +394,9 @@
                         <i class="fas fa-user-clock"></i>
                     </div>
                     <div class="stat-content">
-                        <h3 id="compAvgRequestsPerUser">0</h3>
-                        <p>Avg Requests per User</p>
-                        <span id="compAvgGrowth" class="growth-indicator">+0%</span>
+                        <h3 id="compAvgDailyActiveUsers">0</h3>
+                        <p>Avg Daily Active Users</p>
+                        <span id="compAvgDAUGrowth" class="growth-indicator">+0%</span>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -442,8 +438,8 @@
                 </div>
 
                 <div class="chart-card">
-                    <h3><i class="fas fa-user-check"></i> Avg Requests per User</h3>
-                    <canvas id="compAvgRequestsChart"></canvas>
+                    <h3><i class="fas fa-user-check"></i> Avg Daily Active Users</h3>
+                    <canvas id="compAvgDailyActiveUsersChart"></canvas>
                 </div>
             </div>
         </div>
@@ -632,9 +628,6 @@
     </div>
 
     <!-- Use the new modular script with ES6 modules -->
-    <script type="module" src="script-new.js"></script>
-    
-    <!-- Fallback to old script for browsers without module support -->
-    <script nomodule src="script.js"></script>
+    <script type="module" src="script.js"></script>   
 </body>
 </html>

@@ -228,6 +228,55 @@ body {
     border-color: #667eea;
 }
 
+/* Month checkboxes styling */
+.month-checkboxes-group {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.month-checkboxes-group label {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0;
+}
+
+.month-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.month-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.month-checkbox:hover {
+    background: #e9ecef;
+    border-color: #667eea;
+}
+
+.month-checkbox input[type="checkbox"] {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+}
+
+.month-checkbox span {
+    font-weight: 500;
+    color: #333;
+    user-select: none;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1434,6 +1483,24 @@ body.dark-mode .delete-month-btn-inline {
 
 body.dark-mode .delete-month-btn-inline:hover {
     background: #c0392b;
+}
+
+body.dark-mode .month-checkbox {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: transparent;
+}
+
+body.dark-mode .month-checkbox:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #667eea;
+}
+
+body.dark-mode .month-checkbox span {
+    color: #e1e1e1;
+}
+
+body.dark-mode .month-checkboxes-group label {
+    color: #e1e1e1;
 }
 
 body.dark-mode .clear-month-btn {

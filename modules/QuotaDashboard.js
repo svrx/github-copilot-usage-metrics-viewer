@@ -155,7 +155,6 @@ export class QuotaDashboard {
         this.createQuotaUsageChart();
         this.createQuotaDistributionChart();
         this.createQuotaBreakdownChart();
-        this.createQuotaTimelineChart();
     }
 
     /**
@@ -248,51 +247,7 @@ export class QuotaDashboard {
         }, { stacked: true, xAxisRotation: 45 });
     }
 
-    /**
-     * Create quota timeline chart
-     */
-    createQuotaTimelineChart() {
-        // Group by date and calculate average usage percentage
-        const dateUsage = {};
-        
-        this.filteredQuotaData.forEach(user => {
-            const dateKey = user.lastActivity.toISOString().split('T')[0];
-            if (!dateUsage[dateKey]) {
-                dateUsage[dateKey] = [];
-            }
-            dateUsage[dateKey].push(user.usagePercentage);
-        });
 
-        const sortedDates = Object.keys(dateUsage).sort();
-        const avgUsage = sortedDates.map(date => {
-            const usages = dateUsage[date];
-            return usages.reduce((sum, u) => sum + u, 0) / usages.length;
-        });
-
-        this.chartService.createLineChart('quotaTimelineChart', {
-            labels: sortedDates.map(date => new Date(date).toLocaleDateString()),
-            datasets: [{
-                label: 'Average Quota Usage %',
-                data: avgUsage,
-                borderColor: COLOR_PALETTES.primary,
-                backgroundColor: `${COLOR_PALETTES.primary}20`,
-                fill: true,
-                tension: 0.4
-            }]
-        }, {
-            customOptions: {
-                scales: {
-                    y: {
-                        min: 0,
-                        max: 100,
-                        ticks: {
-                            callback: (value) => value + '%'
-                        }
-                    }
-                }
-            }
-        });
-    }
 
     /**
      * Update table with paginated data
