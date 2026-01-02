@@ -298,6 +298,20 @@ class CopilotUsageAnalyzer {
         this.showLoadingIndicator('Loading sample data...');
         
         try {
+            // Try loading data_example.csv first
+            console.log('Attempting to load sample data from ./data_example.csv');
+            const response = await fetch('./data_example.csv');
+            if (response.ok) {
+                const csvText = await response.text();
+                console.log('Sample data loaded successfully from data_example.csv, length:', csvText.length);
+                this.parseCSV(csvText);
+                return;
+            }
+        } catch (error) {
+            console.error('Error loading data_example.csv:', error);
+        }
+        
+        try {
             console.log('Attempting to load sample data from ./new-format/premiumRequestUsageReport_1_18091ef401bb4b9592d0878b10718042.csv');
             const response = await fetch('./new-format/premiumRequestUsageReport_1_18091ef401bb4b9592d0878b10718042.csv');
             if (!response.ok) {
@@ -399,7 +413,7 @@ class CopilotUsageAnalyzer {
             // Debug first few headers
             if (startIndex === 1) {
                 console.log('Headers detected:', headers);
-                // Check if we have the expected headers
+                // Check if we have the expected headers for new format
                 const requiredHeaders = ['date', 'username', 'model', 'quantity', 'exceeds_quota', 'total_monthly_quota'];
                 const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
                 if (missingHeaders.length > 0) {
@@ -431,7 +445,7 @@ class CopilotUsageAnalyzer {
                                 user: row.username,
                                 model: row.model,
                                 requests: parseFloat(row.quantity) || 1,
-                                exceedsQuota: row.exceeds_quota === 'TRUE' || row.exceeds_quota === 'True' || row.exceeds_quota === 'true',
+                                exceedsQuota: row.exceeds_quota === 'True' || row.exceeds_quota === 'TRUE' || row.exceeds_quota === 'true',
                                 quota: parseInt(row.total_monthly_quota) || 300,
                                 // Keep original data for export
                                 originalData: row

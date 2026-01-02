@@ -528,6 +528,11 @@ tr:hover {
     font-weight: 500;
 }
 
+.quota-near {
+    color: #ffc107;
+    font-weight: 500;
+}
+
 .quota-normal {
     color: #28a745;
     font-weight: 500;
@@ -685,6 +690,16 @@ tr:hover {
         padding: 15px;
     }
     
+    .chart-grid-comparison {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-card-full {
+        grid-column: span 1;
+    }
+}
+    }
+    
     .pagination-controls {
         flex-direction: column;
     }
@@ -695,6 +710,10 @@ tr:hover {
 }
 
 /* Pagination Styles */
+.pagination-container {
+    margin-top: 20px;
+}
+
 .pagination-controls {
     display: flex;
     justify-content: space-between;
@@ -813,6 +832,248 @@ tr:hover {
     font-weight: 700;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
     transform: scale(1.05);
+}
+
+/* Month Selector Styles */
+.month-selector-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 25px;
+    padding: 4px 12px 4px 8px;
+    backdrop-filter: blur(10px);
+}
+
+.filter-group.month-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.filter-group.month-filter label {
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.month-selector-label {
+    color: white;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin: 0;
+}
+
+.month-selector-label i {
+    font-size: 16px;
+}
+
+.month-selector {
+    background: white;
+    border: 1px solid #ddd;
+    color: #333;
+    font-weight: 500;
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 8px 12px;
+    outline: none;
+    border-radius: 5px;
+    min-width: 150px;
+}
+
+.month-selector option {
+    background: white;
+    color: #333;
+}
+
+.delete-month-btn {
+    background: rgba(231, 76, 60, 0.8);
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: white;
+}
+
+.delete-month-btn:hover {
+    background: rgba(231, 76, 60, 1);
+    transform: scale(1.1);
+}
+
+.delete-month-btn i {
+    font-size: 12px;
+}
+
+.delete-month-btn-inline {
+    background: #e74c3c;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: white;
+    font-size: 14px;
+}
+
+.delete-month-btn-inline:hover {
+    background: #c0392b;
+    transform: translateY(-1px);
+}
+
+.delete-month-btn-inline i {
+    font-size: 12px;
+}
+
+.clear-month-btn {
+    background: transparent;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 8px 12px;
+    color: #95a5a6;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    height: 38px;
+    min-width: 38px;
+    margin-top: 22px;
+}
+
+.clear-month-btn:hover {
+    background: #e74c3c;
+    color: white;
+    border-color: #e74c3c;
+    transform: translateY(-1px);
+}
+
+.clear-month-btn i {
+    font-size: 14px;
+}
+
+/* Comparison Dashboard Styles */
+.comparison-intro {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 15px;
+}
+
+.comparison-intro h2 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 2rem;
+}
+
+.comparison-intro h2 i {
+    margin-right: 10px;
+    color: #667eea;
+}
+
+.comparison-intro p {
+    margin: 0;
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.chart-grid-comparison {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+    margin-top: 30px;
+}
+
+.chart-card-full {
+    grid-column: span 2;
+}
+
+.growth-indicator {
+    display: inline-block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-top: 5px;
+}
+
+.growth-positive {
+    color: #27ae60;
+    background: #27ae6020;
+}
+
+.growth-negative {
+    color: #e74c3c;
+    background: #e74c3c20;
+}
+
+.growth-neutral {
+    color: #95a5a6;
+    background: #95a5a620;
+}
+
+.no-data-message {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.no-data-message i {
+    font-size: 4rem;
+    color: #ddd;
+    margin-bottom: 20px;
+}
+
+.no-data-message h3 {
+    margin: 20px 0 10px 0;
+    color: #333;
+}
+
+.no-data-message p {
+    color: #999;
+    font-size: 1.1rem;
+}
+
+body.dark-mode .comparison-intro {
+    background: rgba(42, 45, 62, 0.5);
+}
+
+body.dark-mode .comparison-intro h2 {
+    color: #ffffff;
+}
+
+body.dark-mode .comparison-intro p {
+    color: #d0d0d0;
+}
+
+body.dark-mode .no-data-message {
+    color: #d0d0d0;
+}
+
+body.dark-mode .no-data-message i {
+    color: #4a4d5e;
+}
+
+body.dark-mode .no-data-message h3 {
+    color: #ffffff;
+}
+
+body.dark-mode .no-data-message p {
+    color: #95a5a6;
 }
 
 .tab-content {
@@ -1143,6 +1404,50 @@ body.dark-mode .tab-btn.active {
     transform: scale(1.05);
 }
 
+body.dark-mode .month-selector-container {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+body.dark-mode .month-selector {
+    background: #3a3d4e;
+    color: #ffffff;
+    border-color: #4a4d5e;
+}
+
+body.dark-mode .month-selector option {
+    background: #2a2d3e;
+    color: #ffffff;
+}
+
+body.dark-mode .delete-month-btn {
+    background: rgba(231, 76, 60, 0.9);
+}
+
+body.dark-mode .delete-month-btn:hover {
+    background: rgba(231, 76, 60, 1);
+}
+
+body.dark-mode .delete-month-btn-inline {
+    background: #e74c3c;
+}
+
+body.dark-mode .delete-month-btn-inline:hover {
+    background: #c0392b;
+}
+
+body.dark-mode .clear-month-btn {
+    background: transparent;
+    border-color: #4a4d5e;
+    color: #95a5a6;
+}
+
+body.dark-mode .clear-month-btn:hover {
+    background: #e74c3c;
+    color: white;
+    border-color: #e74c3c;
+}
+
 body.dark-mode .upload-icon-btn {
     background: white;
     color: #667eea;
@@ -1301,4 +1606,134 @@ body.dark-mode .trend-period:hover {
 body.dark-mode .trend-period.active {
     background: #5b6cff;
     color: white;
+}
+
+/* Print Styles */
+@media print {
+    /* Hide interactive elements */
+    .upload-section,
+    .filters,
+    .table-controls,
+    .pagination-controls,
+    .theme-toggle,
+    .tabs,
+    button,
+    .export-btn,
+    #exportBtn,
+    #searchInput,
+    select {
+        display: none !important;
+    }
+    
+    /* Page setup */
+    @page {
+        size: A4;
+        margin: 1.5cm;
+    }
+    
+    body {
+        background: white !important;
+        color: black !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    /* Prevent breaking inside cards */
+    .stat-card,
+    .chart-card {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        margin-bottom: 20px;
+    }
+    
+    /* Add page breaks before major sections */
+    .charts-grid {
+        page-break-before: auto;
+    }
+    
+    .data-table-section {
+        page-break-before: always;
+    }
+    
+    /* Optimize stat cards for print */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    
+    .stat-card {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ddd;
+    }
+    
+    /* Optimize charts grid for print */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    
+    .chart-card-large {
+        grid-column: span 2;
+    }
+    
+    /* Table styles for print */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10pt;
+    }
+    
+    th, td {
+        padding: 8px;
+        border: 1px solid #ddd;
+        text-align: left;
+    }
+    
+    th {
+        background: #f5f5f5 !important;
+        font-weight: bold;
+    }
+    
+    /* Limit table rows to prevent excessive pages */
+    .data-table-section tbody tr:nth-child(n+51) {
+        display: none;
+    }
+    
+    /* Add note about truncated data */
+    .data-table-section::after {
+        content: "Note: Showing first 50 rows. Export full data for complete records.";
+        display: block;
+        margin-top: 10px;
+        font-size: 10pt;
+        font-style: italic;
+        color: #666;
+    }
+    
+    /* Header styling for print */
+    .header {
+        border-bottom: 2px solid #333;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        page-break-after: avoid;
+    }
+    
+    .header h1 {
+        color: #333 !important;
+        font-size: 24pt;
+    }
+    
+    /* Ensure chart visibility */
+    canvas {
+        max-width: 100%;
+        height: auto !important;
+    }
+    
+    /* Hide quota dashboard in print */
+    #quota-dashboard {
+        display: none !important;
+    }
 }

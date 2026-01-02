@@ -50,6 +50,7 @@
             <div class="tab-navigation">
                 <button class="tab-btn active" data-tab="usage-dashboard">Usage Dashboard</button>
                 <button class="tab-btn" data-tab="quota-dashboard">Monthly Quota Analysis</button>
+                <button class="tab-btn" data-tab="comparison-dashboard">Month Comparison</button>
                 <label for="csvFileInputCompact" class="upload-icon-btn" title="Upload New Data">
                     <i class="fas fa-upload"></i>
                 </label>
@@ -62,12 +63,9 @@
             <div id="usage-dashboard" class="tab-content active">
                 <div class="filters">
                     <div class="filter-group">
-                        <label for="dateRange">Date Range:</label>
+                        <label for="dateRange"><i class="fas fa-calendar-alt"></i> Date Range:</label>
                         <select id="dateRange">
-                            <option value="all">All Time</option>
-                            <option value="7">Last 7 Days</option>
-                            <option value="30">Last 30 Days</option>
-                            <option value="90">Last 90 Days</option>
+                            <option value="all">All Time (All Months)</option>
                         </select>
                     </div>
                     <div class="filter-group">
@@ -82,6 +80,9 @@
                             <option value="all">All Models</option>
                         </select>
                     </div>
+                    <button id="clearMonthBtn" class="clear-month-btn" title="Delete this month's data" style="display: none;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
                 </div>
 
             <div class="stats-grid">
@@ -242,18 +243,19 @@
                     <table id="dataTable">
                         <thead>
                             <tr>
-                                <th>Timestamp</th>
+                                <th>Date</th>
                                 <th>User</th>
                                 <th>Model</th>
                                 <th>Requests</th>
-                                <th>Exceeds Monthly Quota</th>
-                                <th>Total Monthly Quota</th>
+                                <th>Exceeds Quota</th>
+                                <th>Quota</th>
                             </tr>
                         </thead>
                         <tbody id="dataTableBody">
                         </tbody>
                     </table>
                 </div>
+                <div id="dataTable-pagination" class="pagination-container"></div>
             </div>
             </div>
 
@@ -261,20 +263,20 @@
             <div id="quota-dashboard" class="tab-content">
                 <div class="filters">
                     <div class="filter-group">
+                        <label for="quotaDateRange"><i class="fas fa-calendar-alt"></i> Date Range:</label>
+                        <select id="quotaDateRange">
+                            <option value="all">All Time (All Months)</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
                         <label for="quotaUserFilter">User:</label>
                         <select id="quotaUserFilter">
                             <option value="all">All Users</option>
                         </select>
                     </div>
-                    <div class="filter-group">
-                        <label for="quotaDateRange">Date Range:</label>
-                        <select id="quotaDateRange">
-                            <option value="all">All Time</option>
-                            <option value="7">Last 7 Days</option>
-                            <option value="30">Last 30 Days</option>
-                            <option value="90">Last 90 Days</option>
-                        </select>
-                    </div>
+                    <button id="quotaClearMonthBtn" class="clear-month-btn" title="Delete this month's data" style="display: none;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
                 </div>
 
                 <div class="stats-grid">
@@ -346,11 +348,11 @@
                             <thead>
                                 <tr>
                                     <th>User</th>
-                                    <th>Total Requests</th>
-                                    <th>Monthly Quota</th>
+                                    <th>Requests</th>
+                                    <th>Quota</th>
                                     <th>Usage %</th>
                                     <th>Status</th>
-                                    <th>Requests Exceeding Quota</th>
+                                    <th>Exceeds Quota</th>
                                     <th>Remaining Quota</th>
                                 </tr>
                             </thead>
@@ -358,6 +360,90 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="quotaTable-pagination" class="pagination-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Month Comparison Dashboard Tab -->
+        <div id="comparison-dashboard" class="tab-content">
+            <div class="comparison-intro">
+                <h2><i class="fas fa-chart-line"></i> Month-to-Month Comparison</h2>
+                <p>Track adoption progress, usage trends, and model preferences across multiple months</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="compTotalUsers">0</h3>
+                        <p>Active Users (Latest Month)</p>
+                        <span id="compUserGrowth" class="growth-indicator">+0%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="compTotalRequests">0</h3>
+                        <p>Total Requests (Latest Month)</p>
+                        <span id="compRequestGrowth" class="growth-indicator">+0%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="compAvgRequestsPerUser">0</h3>
+                        <p>Avg Requests per User</p>
+                        <span id="compAvgGrowth" class="growth-indicator">+0%</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="compAvgQuotaUsage">0%</h3>
+                        <p>Avg Quota Utilization</p>
+                        <span id="compQuotaGrowth" class="growth-indicator">+0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-grid-comparison">
+                <div class="chart-card chart-card-full">
+                    <h3><i class="fas fa-chart-area"></i> User Requests Distribution</h3>
+                    <canvas id="compUserAdoptionChart"></canvas>
+                </div>
+
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-column"></i> Request Volume by Month</h3>
+                    <canvas id="compRequestVolumeChart"></canvas>
+                </div>
+
+                <div class="chart-card">
+                    <h3><i class="fas fa-users"></i> User Engagement Distribution</h3>
+                    <canvas id="compEngagementChart"></canvas>
+                </div>
+
+                <div class="chart-card chart-card-full">
+                    <h3><i class="fas fa-layer-group"></i> Model Usage Evolution</h3>
+                    <canvas id="compModelEvolutionChart"></canvas>
+                </div>
+
+                <div class="chart-card">
+                    <h3><i class="fas fa-gauge-high"></i> Quota Utilization Trend</h3>
+                    <canvas id="compQuotaTrendChart"></canvas>
+                </div>
+
+                <div class="chart-card">
+                    <h3><i class="fas fa-user-check"></i> Avg Requests per User</h3>
+                    <canvas id="compAvgRequestsChart"></canvas>
                 </div>
             </div>
         </div>
@@ -545,6 +631,10 @@
 
     </div>
 
-    <script src="script.js"></script>
+    <!-- Use the new modular script with ES6 modules -->
+    <script type="module" src="script-new.js"></script>
+    
+    <!-- Fallback to old script for browsers without module support -->
+    <script nomodule src="script.js"></script>
 </body>
 </html>

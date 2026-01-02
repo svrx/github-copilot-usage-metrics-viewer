@@ -20,6 +20,8 @@ A web-based dashboard that provides insights into GitHub Copilot requests usage 
 - 📊 **Overview Analytics**: Total users, requests, model distribution, and top users etc
 - 🔍 **Advanced Analytics**: Hourly usage patterns, filtering by date, user, or model
 - 💡 **Insights Dashboard**: Interactive charts, real-time search, and exportable filtered data
+- 📅 **Multi-Month Support**: Store and switch between multiple months of data with automatic month detection
+- 📈 **Month Comparison**: Track adoption progress, usage trends, and model preferences across multiple months
 
 ### Dashboard Preview
 
@@ -66,6 +68,37 @@ Ready to see your own Copilot insights? Here's how to get your data in 3 simple 
    2025-10-01,user1,copilot,copilot_requests_o1_preview,o1-preview,1,request,0.04,0.04,0,0.04,false,1000,YourOrg,
    ```
 3. Load the file into the dashboard by clicking "📁 Load Data".
+
+### Multi-Month Data Management
+The dashboard now supports storing and managing data for multiple months:
+
+- **Automatic Month Detection**: When you upload a CSV file, the dashboard automatically detects the year and month from the data timestamps and labels it accordingly (e.g., "October 2025").
+- **Date Range Filter**: The Date Range filter now serves as your month selector:
+  - **All Time (All Months)**: Combines and displays data from all uploaded months
+  - **Individual Months**: Select a specific month to view only that month's data
+- **Auto-Selection on Upload**: When you upload new data, the dashboard automatically selects that month in the Date Range filter
+- **Clear Month Button**: When viewing a specific month, a "Clear Month" button appears on the right side of the filter bar to delete that month's data
+- **Data Persistence**: Each month's data is stored separately in your browser's local storage, allowing you to compare different periods
+
+**How to use**:
+1. Upload CSV files from different months - each is stored and labeled automatically
+2. Use the Date Range filter to switch between "All Time" (all months combined) or individual months
+3. When viewing a specific month, click "Clear Month" to delete that month's data
+4. The dashboard remembers your selection between sessions
+
+**Tip**: Start with "All Time" to see trends across all your data, then drill down to specific months for detailed analysis.
+
+### Month-to-Month Comparison
+Once you have uploaded data from at least 2 months, access the **Month Comparison** tab to:
+
+- **Track Engagement Distribution**: Visualize how user activity quartiles evolve over time, showing the full spectrum from low to high engagement users with shaded areas between quartiles
+- **Monitor Usage Trends**: Compare total requests and average requests per user across months to understand engagement depth
+- **Analyze Model Preferences**: View model usage evolution with stacked area charts showing how model preferences shift over time
+- **Measure Quota Efficiency**: Track average quota utilization trends to identify capacity planning needs
+- **Understand Engagement**: See user distribution across high/medium/low engagement tiers month-over-month
+- **Growth Indicators**: Stat cards show month-over-month percentage changes for key metrics with color-coded growth indicators
+
+The comparison dashboard automatically updates when you upload new months or delete old data.
 
 ---
 
