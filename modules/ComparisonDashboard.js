@@ -311,6 +311,7 @@ export class ComparisonDashboard {
         const q1Values = [];
         const q2Values = []; // Median
         const q3Values = [];
+        const q90Values = []; // 90th percentile
         const maxValues = [];
         const avgValues = [];
         
@@ -322,11 +323,13 @@ export class ComparisonDashboard {
                 const q1Index = Math.floor(userRequestCounts.length * 0.25);
                 const q2Index = Math.floor(userRequestCounts.length * 0.5);
                 const q3Index = Math.floor(userRequestCounts.length * 0.75);
+                const q90Index = Math.floor(userRequestCounts.length * 0.90);
                 
                 minValues.push(userRequestCounts[0]);
                 q1Values.push(userRequestCounts[q1Index]);
                 q2Values.push(userRequestCounts[q2Index]);
                 q3Values.push(userRequestCounts[q3Index]);
+                q90Values.push(userRequestCounts[q90Index]);
                 maxValues.push(userRequestCounts[userRequestCounts.length - 1]);
                 avgValues.push(filteredData[key].metrics.avgRequestsPerUser);
             } else {
@@ -334,34 +337,36 @@ export class ComparisonDashboard {
                 q1Values.push(0);
                 q2Values.push(0);
                 q3Values.push(0);
+                q90Values.push(0);
                 maxValues.push(0);
                 avgValues.push(0);
             }
         });
 
-        // Determine if log scale would be helpful (if max is > 10x the median)
-        const maxOfMax = Math.max(...maxValues);
-        const avgOfMedian = q2Values.reduce((a, b) => a + b, 0) / q2Values.length;
-        const useLogScale = maxOfMax > (avgOfMedian * 10) && avgOfMedian > 0;
+        // Set y-axis max based on 90th percentile (with some padding)
+        const maxQ90 = Math.max(...q90Values);
+        const yAxisMax = Math.ceil(maxQ90 * 1.1); // 10% padding
 
         this.chartService.createLineChart('compUserAdoptionChart', {
             labels: labels,
             datasets: [
+                {
+                    label: 'Minimum',
+                    data: minValues,
+                    borderColor: COLOR_PALETTES.secondary,
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0.4,
+                    borderWidth: 1,
+                    borderDash: [2, 3],
+                    pointRadius: 2
+                },
                 {
                     label: '25th Percentile',
                     data: q1Values,
                     borderColor: COLOR_PALETTES.success,
                     backgroundColor: 'transparent',
                     fill: false,
-                    tension: 0.4,
-                    borderWidth: 2
-                },
-                {
-                    label: '75th Percentile (Top Users)',
-                    data: q3Values,
-                    borderColor: COLOR_PALETTES.success,
-                    backgroundColor: `${COLOR_PALETTES.success}20`,
-                    fill: '-1',
                     tension: 0.4,
                     borderWidth: 2
                 },
@@ -375,17 +380,6 @@ export class ComparisonDashboard {
                     borderWidth: 2
                 },
                 {
-                    label: 'Minimum',
-                    data: minValues,
-                    borderColor: COLOR_PALETTES.secondary,
-                    backgroundColor: 'transparent',
-                    fill: false,
-                    tension: 0.4,
-                    borderWidth: 1,
-                    borderDash: [2, 3],
-                    pointRadius: 2
-                },
-                {
                     label: 'Average',
                     data: avgValues,
                     borderColor: COLOR_PALETTES.primary,
@@ -394,38 +388,62 @@ export class ComparisonDashboard {
                     tension: 0.4,
                     borderWidth: 2,
                     borderDash: [8, 4]
+                },
+                {
+                    label: '75th Percentile',
+                    data: q3Values,
+                    borderColor: COLOR_PALETTES.success,
+                    backgroundColor: `${COLOR_PALETTES.success}20`,
+                    fill: 1,
+                    tension: 0.4,
+                    borderWidth: 2
+                },
+                {
+                    label: '90th Percentile',
+                    data: q90Values,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 3
                 }
             ]
         }, {
-            scales: {
-                y: {
-                    type: useLogScale ? 'logarithmic' : 'linear',
-                    title: { 
-                        display: true, 
-                        text: useLogScale ? 'Requests per User (log scale)' : 'Requests per User' 
-                    },
-                    beginAtZero: !useLogScale
-                }
-            },
-            plugins: {
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    callbacks: {
-                        footer: (tooltipItems) => {
-                            if (tooltipItems && tooltipItems.length > 0) {
-                                const dataIndex = tooltipItems[0].dataIndex;
-                                const maxValue = Math.round(maxValues[dataIndex]);
-                                return `Maximum: ${maxValue.toLocaleString()}`;
-                            }
-                            return '';
-                        }
+            customOptions: {
+                scales: {
+                    y: {
+                        type: 'linear',
+                        title: { 
+                            display: true, 
+                            text: 'Requests per User' 
+                        },
+                        beginAtZero: true,
+                        max: yAxisMax
                     }
                 },
-                legend: {
-                    labels: {
-                        usePointStyle: true,
-                        boxWidth: 6
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            afterLabel: (context) => {
+                                // Add maximum value after the 90th percentile label
+                                if (context.dataset.label === '90th Percentile') {
+                                    const dataIndex = context.dataIndex;
+                                    const maxValue = Math.round(maxValues[dataIndex]);
+                                    return `(Max for this month: ${maxValue.toLocaleString()})`;
+                                }
+                                return '';
+                            }
+                        }
+                    },
+                    legend: {
+                        labels: {
+                            usePointStyle: true,
+                            boxWidth: 6
+                        }
                     }
                 }
             }
