@@ -193,25 +193,23 @@ export class QuotaDashboard {
      */
     createQuotaDistributionChart() {
         const normal = this.filteredQuotaData.filter(u => u.usagePercentage < 80).length;
-        const warning = this.filteredQuotaData.filter(u => u.usagePercentage >= 80 && u.usagePercentage < 90).length;
-        const critical = this.filteredQuotaData.filter(u => u.usagePercentage >= 90 && u.usagePercentage < 100).length;
-        const overLimit = this.filteredQuotaData.filter(u => u.usagePercentage >= 100).length;
+        const nearQuota = this.filteredQuotaData.filter(u => u.usagePercentage >= 80 && u.usagePercentage < 100).length;
+        const overQuota = this.filteredQuotaData.filter(u => u.usagePercentage >= 100).length;
 
         this.chartService.createDoughnutChart('quotaDistributionChart', {
-            labels: ['Normal (0-80%)', 'Warning (80-90%)', 'Critical (90-100%)', 'Over Limit (100%+)'],
+            labels: ['Normal (<80%)', 'Near Quota (80-100%)', 'Over Quota (≥100%)'],
             datasets: [{
-                data: [normal, warning, critical, overLimit],
+                data: [normal, nearQuota, overQuota],
                 backgroundColor: [
                     COLOR_PALETTES.success,
                     COLOR_PALETTES.warning,
-                    COLOR_PALETTES.danger,
-                    '#8b0000'
+                    COLOR_PALETTES.danger
                 ]
             }]
         }, {
             onClick: (_, elements) => {
                 if (elements.length > 0) {
-                    const labels = ['Normal (0-80%)', 'Warning (80-90%)', 'Critical (90-100%)', 'Over Limit (100%+)'];
+                    const labels = ['Normal (<80%)', 'Near Quota (80-100%)', 'Over Quota (≥100%)'];
                     this.showQuotaDistributionDetails(labels[elements[0].index]);
                 }
             }
@@ -284,12 +282,10 @@ export class QuotaDashboard {
     showQuotaDistributionDetails(category) {
         let filteredUsers = [];
         
-        if (category === 'Normal (0-80%)') {
+        if (category === 'Normal (<80%)') {
             filteredUsers = this.filteredQuotaData.filter(u => u.usagePercentage < 80);
-        } else if (category === 'Warning (80-90%)') {
-            filteredUsers = this.filteredQuotaData.filter(u => u.usagePercentage >= 80 && u.usagePercentage < 90);
-        } else if (category === 'Critical (90-100%)') {
-            filteredUsers = this.filteredQuotaData.filter(u => u.usagePercentage >= 90 && u.usagePercentage < 100);
+        } else if (category === 'Near Quota (80-100%)') {
+            filteredUsers = this.filteredQuotaData.filter(u => u.usagePercentage >= 80 && u.usagePercentage < 100);
         } else {
             filteredUsers = this.filteredQuotaData.filter(u => u.usagePercentage >= 100);
         }

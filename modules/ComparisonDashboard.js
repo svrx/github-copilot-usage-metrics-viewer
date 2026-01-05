@@ -3,6 +3,7 @@ import { ModalManager } from '../components/Modal.js';
 import * as DataAggregation from '../utils/dataAggregation.js';
 import { APP_CONFIG } from '../config/appConfig.js';
 import { COLOR_PALETTES } from '../config/constants.js';
+import { getThemeColors } from '../config/chartConfig.js';
 
 /**
  * Comparison Dashboard Module - Month-to-Month comparison and trend analysis
@@ -157,9 +158,9 @@ export class ComparisonDashboard {
         // User engagement tiers
         const userRequestCounts = Object.values(DataAggregation.calculateRequestsPerUser(data));
         const heavyEngagement = userRequestCounts.filter(c => c > 250).length;
-        const significantEngagement = userRequestCounts.filter(c => c >= 150 && c <= 250).length;
-        const modestEngagement = userRequestCounts.filter(c => c >= 35 && c < 150).length;
-        const lowEngagement = userRequestCounts.filter(c => c < 35).length;
+        const significantEngagement = userRequestCounts.filter(c => c >= 120 && c <= 250).length;
+        const modestEngagement = userRequestCounts.filter(c => c >= 30 && c < 120).length;
+        const lowEngagement = userRequestCounts.filter(c => c < 30).length;
 
         return {
             totalUsers,
@@ -620,61 +621,93 @@ export class ComparisonDashboard {
         const modestEngagement = monthKeys.map(key => filteredData[key].metrics.modestEngagement);
         const lowEngagement = monthKeys.map(key => filteredData[key].metrics.lowEngagement);
 
-        // Use line chart to show progression trends
+        const themeColors = getThemeColors();
+
+        // Use stacked area chart to show distribution
         this.chartService.createLineChart('compEngagementChart', {
             labels: labels,
             datasets: [
                 {
-                    label: 'Heavy (>250 req)',
-                    data: heavyEngagement,
-                    borderColor: COLOR_PALETTES.danger,
-                    backgroundColor: `${COLOR_PALETTES.danger}20`,
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 2
-                },
-                {
-                    label: 'Significant (150-250 req)',
-                    data: significantEngagement,
-                    borderColor: COLOR_PALETTES.success,
-                    backgroundColor: `${COLOR_PALETTES.success}20`,
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 2
-                },
-                {
-                    label: 'Modest (35-150 req)',
-                    data: modestEngagement,
-                    borderColor: COLOR_PALETTES.info,
-                    backgroundColor: `${COLOR_PALETTES.info}20`,
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 2
-                },
-                {
-                    label: 'Low (<35 req)',
+                    label: 'Light (<30 req)',
                     data: lowEngagement,
                     borderColor: COLOR_PALETTES.secondary,
-                    backgroundColor: `${COLOR_PALETTES.secondary}20`,
-                    fill: true,
+                    backgroundColor: `${COLOR_PALETTES.secondary}60`,
+                    fill: 'origin',
+                    tension: 0.4,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Moderate (30-120 req)',
+                    data: modestEngagement,
+                    borderColor: COLOR_PALETTES.info,
+                    backgroundColor: `${COLOR_PALETTES.info}60`,
+                    fill: '-1',
+                    tension: 0.4,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Proficient (120-250 req)',
+                    data: significantEngagement,
+                    borderColor: COLOR_PALETTES.success,
+                    backgroundColor: `${COLOR_PALETTES.success}60`,
+                    fill: '-1',
+                    tension: 0.4,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Power (>250 req)',
+                    data: heavyEngagement,
+                    borderColor: COLOR_PALETTES.danger,
+                    backgroundColor: `${COLOR_PALETTES.danger}60`,
+                    fill: '-1',
                     tension: 0.4,
                     borderWidth: 2
                 }
             ]
         }, {
-            scales: {
-                y: {
-                    beginAtZero: true,
+            customOptions: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: 'Total Active Users',
+                            color: themeColors.textColor
+                        },
+                        ticks: {
+                            color: themeColors.textColor
+                        },
+                        grid: {
+                            color: themeColors.gridColor
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: themeColors.textColor
+                        },
+                        grid: {
+                            color: themeColors.gridColor
+                        }
+                    }
+                },
+                plugins: {
                     title: {
                         display: true,
-                        text: 'Number of Users'
+                        text: 'User Engagement Distribution',
+                        color: themeColors.textColor,
+                        font: { size: 14, weight: 'normal' },
+                        padding: { bottom: 15 }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    legend: {
+                        labels: {
+                            color: themeColors.textColor
+                        }
                     }
-                }
-            },
-            plugins: {
-                tooltip: {
-                    mode: 'index',
-                    intersect: false
                 }
             }
         });

@@ -338,18 +338,46 @@ export class UsageDashboard {
     createUserDistributionChart() {
         const userRequests = DataAggregation.calculateRequestsPerUser(this.filteredData);
         
-        const distribution = USER_DISTRIBUTION_BRACKETS.map(bracket => {
+        // Calculate the number of months in the filtered data
+        const dates = this.filteredData.map(row => new Date(row.timestamp));
+        const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+        const monthsCount = Math.max(1, Math.round((maxDate - minDate) / (1000 * 60 * 60 * 24 * 30)));
+        const multiplier = monthsCount;
+        
+        // Adjust brackets based on multiplier
+        const adjustedBrackets = USER_DISTRIBUTION_BRACKETS.map(bracket => ({
+            ...bracket,
+            min: bracket.min * multiplier,
+            max: bracket.max === Infinity ? Infinity : bracket.max * multiplier
+        }));
+        
+        const distribution = adjustedBrackets.map(bracket => {
             return Object.values(userRequests).filter(
                 requests => requests >= bracket.min && requests <= bracket.max
             ).length;
         });
 
+        const colors = [
+            COLOR_PALETTES.secondary,  // Light
+            COLOR_PALETTES.info,       // Moderate
+            COLOR_PALETTES.success,    // Proficient
+            COLOR_PALETTES.danger      // Power
+        ];
+
+        // Create labels with ranges
+        const labels = adjustedBrackets.map(b => {
+            const minLabel = b.min === 0 ? '0' : Math.ceil(b.min).toLocaleString();
+            const maxLabel = b.max === Infinity ? '+' : Math.floor(b.max).toLocaleString();
+            return `${b.label} (${minLabel}-${maxLabel})`;
+        });
+
         this.chartService.createBarChart('userDistributionChart', {
-            labels: USER_DISTRIBUTION_BRACKETS.map(b => b.label + ' requests'),
+            labels: labels,
             datasets: [{
                 label: 'Number of Users',
                 data: distribution,
-                backgroundColor: COLOR_PALETTES.green
+                backgroundColor: colors
             }]
         });
     }

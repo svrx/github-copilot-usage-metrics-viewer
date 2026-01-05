@@ -18,11 +18,10 @@ export const REQUEST_SIZE_CATEGORIES = {
 
 // User distribution brackets for analytics
 export const USER_DISTRIBUTION_BRACKETS = [
-    { label: '1-25', min: 1, max: 25 },
-    { label: '26-100', min: 26, max: 100 },
-    { label: '101-250', min: 101, max: 250 },
-    { label: '251-500', min: 251, max: 500 },
-    { label: '500+', min: 501, max: Infinity }
+    { label: 'Light', min: 0, max: 29 },
+    { label: 'Moderate', min: 30, max: 119 },
+    { label: 'Proficient', min: 120, max: 250 },
+    { label: 'Power', min: 251, max: Infinity }
 ];
 
 // Quota thresholds

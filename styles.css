@@ -1639,6 +1639,21 @@ body.dark-mode tr:hover {
     background: #3a3f55;
 }
 
+body.dark-mode .quota-exceeded {
+    color: #ff6b6b;
+    font-weight: 500;
+}
+
+body.dark-mode .quota-near {
+    color: #ffd93d;
+    font-weight: 500;
+}
+
+body.dark-mode .quota-normal {
+    color: #51cf66;
+    font-weight: 500;
+}
+
 body.dark-mode .pagination-controls {
     background: #2a2d3e;
 }
