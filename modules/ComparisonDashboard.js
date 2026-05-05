@@ -627,7 +627,7 @@ export class ComparisonDashboard {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 100,
+                        max: Math.max(100, ...avgUsage, ...percentOverQuota),
                         ticks: {
                             callback: (value) => value.toFixed(0) + '%'
                         }
