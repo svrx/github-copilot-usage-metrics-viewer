@@ -28,25 +28,27 @@ class CopilotUsageAnalyzer {
         this.rawData = [];
         this.currentTab = 'usage-dashboard';
         this.currentMonth = null;
-        this.allMonthsData = {}; // Store all loaded months' data
         
-        // Dashboard configuration
-        this.dashboardConfig = this.storageService.loadDashboardConfig() || {
-            darkMode: false
-        };
+        // Dashboard configuration (loaded async in init)
+        this.dashboardConfig = { darkMode: false };
         
         console.log('CopilotUsageAnalyzer initialized');
+        this._bootstrap();
+    }
+
+    async _bootstrap() {
+        this.dashboardConfig = (await this.storageService.loadDashboardConfig()) || { darkMode: false };
         this.init();
     }
 
     /**
      * Initialize the application
      */
-    init() {
+    async init() {
         this.setupEventListeners();
         this.applyDarkMode();
-        this.loadMonthsList();
-        this.checkForSelectedMonth();
+        await this.loadMonthsList();
+        await this.checkForSelectedMonth();
         this.handleDeepLink();
     }
 
@@ -114,7 +116,7 @@ class CopilotUsageAnalyzer {
                 
         // Load comparison data when switching to comparison tab
         if (tabId === 'comparison-dashboard') {
-            this.comparisonDashboard.loadData();
+            this.comparisonDashboard.loadData().catch(err => console.error('Failed to load comparison data:', err));
         }
     }
 
@@ -140,10 +142,10 @@ class CopilotUsageAnalyzer {
     /**
      * Toggle dark mode
      */
-    toggleDarkMode() {
+    async toggleDarkMode() {
         document.body.classList.toggle('dark-mode');
         this.dashboardConfig.darkMode = document.body.classList.contains('dark-mode');
-        this.storageService.saveDashboardConfig(this.dashboardConfig);
+        await this.storageService.saveDashboardConfig(this.dashboardConfig);
         
         // Update chart themes
         this.usageDashboard.updateTheme();
@@ -165,22 +167,10 @@ class CopilotUsageAnalyzer {
     }
 
     /**
-     * Check for cached data on load
-     */
-    checkForCachedData() {
-        const cachedData = this.storageService.loadFromCache();
-        if (cachedData && cachedData.length > 0) {
-            console.log('Found cached data:', cachedData.length, 'records');
-            this.notificationService.info('Loaded cached data. Upload new file to refresh.');
-            this.processData(cachedData);
-        }
-    }
-
-    /**
      * Load available months list
      */
-    loadMonthsList() {
-        const monthsList = this.storageService.getMonthsList();
+    async loadMonthsList() {
+        const monthsList = await this.storageService.getMonthsList();
         const dateRangeSelector = document.getElementById('dateRange');
         const quotaDateRangeSelector = document.getElementById('quotaDateRange');
         
@@ -212,22 +202,19 @@ class CopilotUsageAnalyzer {
     /**
      * Check for previously selected month
      */
-    checkForSelectedMonth() {
-        const monthsList = this.storageService.getMonthsList();
+    async checkForSelectedMonth() {
+        const monthsList = await this.storageService.getMonthsList();
         
         if (monthsList.length > 0) {
             // Load all months data by default
-            this.loadAllMonthsData();
-        } else {
-            // Check for legacy cached data
-            this.checkForCachedData();
+            await this.loadAllMonthsData();
         }
     }
 
     /**
      * Handle date range change (now used for month selection)
      */
-    handleDateRangeChange(event) {
+    async handleDateRangeChange(event) {
         const value = event.target.value;
         
         // Sync both selectors
@@ -241,10 +228,10 @@ class CopilotUsageAnalyzer {
         
         if (value === 'all') {
             // Load all months data
-            this.loadAllMonthsData();
+            await this.loadAllMonthsData();
         } else {
             // Load specific month
-            this.loadMonth(value);
+            await this.loadMonth(value);
         }
     }
 
@@ -264,8 +251,8 @@ class CopilotUsageAnalyzer {
     /**
      * Load all months data and combine them
      */
-    loadAllMonthsData() {
-        const monthsList = this.storageService.getMonthsList();
+    async loadAllMonthsData() {
+        const monthsList = await this.storageService.getMonthsList();
         
         if (monthsList.length === 0) {
             this.notificationService.warning('No data available');
@@ -273,18 +260,16 @@ class CopilotUsageAnalyzer {
         }
         
         let combinedData = [];
-        this.allMonthsData = {};
         
-        monthsList.forEach(month => {
-            const data = this.storageService.loadMonthData(month.key);
+        for (const month of monthsList) {
+            const data = await this.storageService.loadMonthData(month.key);
             if (data && data.length > 0) {
-                this.allMonthsData[month.key] = data;
                 combinedData = combinedData.concat(data);
             }
-        });
+        }
         
         this.currentMonth = 'all';
-        this.storageService.setSelectedMonth('all');
+        await this.storageService.setSelectedMonth('all');
         
         // Update selectors
         const dateRangeSelector = document.getElementById('dateRange');
@@ -315,8 +300,8 @@ class CopilotUsageAnalyzer {
     /**
      * Load data for a specific month
      */
-    loadMonth(monthKey) {
-        const data = this.storageService.loadMonthData(monthKey);
+    async loadMonth(monthKey) {
+        const data = await this.storageService.loadMonthData(monthKey);
         
         if (!data || data.length === 0) {
             this.notificationService.warning(`No data found for selected month`);
@@ -324,7 +309,7 @@ class CopilotUsageAnalyzer {
         }
         
         this.currentMonth = monthKey;
-        this.storageService.setSelectedMonth(monthKey);
+        await this.storageService.setSelectedMonth(monthKey);
         
         // Update both selectors to stay in sync
         const dateRangeSelector = document.getElementById('dateRange');
@@ -338,7 +323,8 @@ class CopilotUsageAnalyzer {
         // Process and display data
         this.processData(data);
         
-        const monthsList = this.storageService.getMonthsList();
+        // Use cached months list for the label lookup
+        const monthsList = await this.storageService.getMonthsList();
         const monthInfo = monthsList.find(m => m.key === monthKey);
         const label = monthInfo ? monthInfo.label : monthKey;
         
@@ -348,13 +334,13 @@ class CopilotUsageAnalyzer {
     /**
      * Handle delete month (now called clear month)
      */
-    handleClearMonth() {
+    async handleClearMonth() {
         if (!this.currentMonth || this.currentMonth === 'all') {
             this.notificationService.warning('No specific month selected to clear');
             return;
         }
         
-        const monthsList = this.storageService.getMonthsList();
+        const monthsList = await this.storageService.getMonthsList();
         const monthInfo = monthsList.find(m => m.key === this.currentMonth);
         const label = monthInfo ? monthInfo.label : this.currentMonth;
         
@@ -362,19 +348,17 @@ class CopilotUsageAnalyzer {
             return;
         }
         
-        this.storageService.deleteMonthData(this.currentMonth);
+        await this.storageService.deleteMonthData(this.currentMonth);
         this.notificationService.success(`Deleted ${label} data`);
         
-        // Reload months list
-        this.loadMonthsList();
+        // Reload months list UI and decide what to show
+        await this.loadMonthsList();
         
-        // Load all remaining months or clear dashboard
-        const updatedMonthsList = this.storageService.getMonthsList();
+        const updatedMonthsList = await this.storageService.getMonthsList();
         if (updatedMonthsList.length > 0) {
-            this.loadAllMonthsData();
-            // Refresh comparison dashboard if it's active
+            await this.loadAllMonthsData();
             if (this.currentTab === 'comparison-dashboard') {
-                this.comparisonDashboard.loadData();
+                await this.comparisonDashboard.loadData();
             }
         } else {
             this.currentMonth = null;
@@ -416,13 +400,12 @@ class CopilotUsageAnalyzer {
             }
             
             // Save with month key
-            this.storageService.saveMonthData(monthInfo.key, data, monthInfo);
-            this.storageService.saveToCache(data); // Legacy support
+            await this.storageService.saveMonthData(monthInfo.key, data, monthInfo);
             
             this.loadingIndicator.hide();
             
             // Reload months list
-            this.loadMonthsList();
+            await this.loadMonthsList();
             
             // Select the newly uploaded month
             const dateRangeSelector = document.getElementById('dateRange');
@@ -431,11 +414,11 @@ class CopilotUsageAnalyzer {
             if (quotaDateRangeSelector) quotaDateRangeSelector.value = monthInfo.key;
             
             // Load the new month
-            this.loadMonth(monthInfo.key);
+            await this.loadMonth(monthInfo.key);
             
             // Refresh comparison dashboard if available
-            if (this.storageService.getMonthsList().length >= 2) {
-                this.comparisonDashboard.loadData();
+            if ((await this.storageService.getMonthsList()).length >= 2) {
+                await this.comparisonDashboard.loadData();
             }
             
             this.notificationService.success(`Uploaded ${monthInfo.label} data (${data.length} records)`);
@@ -479,10 +462,10 @@ class CopilotUsageAnalyzer {
             
             if (monthInfo) {
                 // Save with month key
-                this.storageService.saveMonthData(monthInfo.key, data, monthInfo);
+                await this.storageService.saveMonthData(monthInfo.key, data, monthInfo);
                 
                 // Reload months list
-                this.loadMonthsList();
+                await this.loadMonthsList();
                 
                 // Select the newly loaded sample month
                 const dateRangeSelector = document.getElementById('dateRange');
@@ -491,7 +474,7 @@ class CopilotUsageAnalyzer {
                 if (quotaDateRangeSelector) quotaDateRangeSelector.value = monthInfo.key;
                 
                 // Load the sample month
-                this.loadMonth(monthInfo.key);
+                await this.loadMonth(monthInfo.key);
                 
                 this.notificationService.success(`Sample data loaded: ${monthInfo.label}`);
             } else {

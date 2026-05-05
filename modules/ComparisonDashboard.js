@@ -24,26 +24,29 @@ export class ComparisonDashboard {
     /**
      * Load data for comparison
      */
-    loadData() {
-        const monthsList = this.storageService.getMonthsList();
+    async loadData() {
+        const monthsList = await this.storageService.getMonthsList();
         
         if (monthsList.length < 1) {
             this.showNoDataMessage();
             return;
         }
 
-        // Load all months data
+        // Load each month, compute metrics, then release raw data
         this.monthsData = {};
-        monthsList.forEach(month => {
-            const data = this.storageService.loadMonthData(month.key);
+        for (const month of monthsList) {
+            const data = await this.storageService.loadMonthData(month.key);
             if (data && data.length > 0) {
+                const metrics = this.calculateMonthMetrics(data);
+                const distribution = this._computeDistribution(data);
                 this.monthsData[month.key] = {
                     label: month.label,
-                    data: data,
-                    metrics: this.calculateMonthMetrics(data)
+                    metrics,
+                    distribution
                 };
+                // raw data is not retained — only pre-computed summaries
             }
-        });
+        }
 
         if (Object.keys(this.monthsData).length < 2) {
             this.showNoDataMessage();
@@ -56,6 +59,30 @@ export class ComparisonDashboard {
         this.renderMonthCheckboxes();
         this.calculateComparisonMetrics();
         this.updateDashboard();
+    }
+
+    /**
+     * Pre-compute per-user request distribution stats for box-plot charts.
+     * Called once at load time so raw data can be released.
+     */
+    _computeDistribution(data) {
+        const userRequestCounts = Object.values(
+            DataAggregation.calculateRequestsPerUser(data)
+        ).sort((a, b) => a - b);
+
+        if (userRequestCounts.length === 0) {
+            return { min: 0, q1: 0, median: 0, q3: 0, q90: 0, max: 0 };
+        }
+
+        const at = (pct) => userRequestCounts[Math.floor(userRequestCounts.length * pct)];
+        return {
+            min: userRequestCounts[0],
+            q1: at(0.25),
+            median: at(0.5),
+            q3: at(0.75),
+            q90: at(0.90),
+            max: userRequestCounts[userRequestCounts.length - 1]
+        };
     }
 
     /**
@@ -306,7 +333,7 @@ export class ComparisonDashboard {
         const monthKeys = Object.keys(filteredData).sort();
         const labels = monthKeys.map(key => filteredData[key].label);
         
-        // Calculate quartiles and extremes for each month
+        // Use pre-computed distribution stats
         const minValues = [];
         const q1Values = [];
         const q2Values = []; // Median
@@ -316,31 +343,15 @@ export class ComparisonDashboard {
         const avgValues = [];
         
         monthKeys.forEach(key => {
-            const data = filteredData[key].data;
-            const userRequestCounts = Object.values(DataAggregation.calculateRequestsPerUser(data)).sort((a, b) => a - b);
+            const dist = filteredData[key].distribution;
             
-            if (userRequestCounts.length > 0) {
-                const q1Index = Math.floor(userRequestCounts.length * 0.25);
-                const q2Index = Math.floor(userRequestCounts.length * 0.5);
-                const q3Index = Math.floor(userRequestCounts.length * 0.75);
-                const q90Index = Math.floor(userRequestCounts.length * 0.90);
-                
-                minValues.push(userRequestCounts[0]);
-                q1Values.push(userRequestCounts[q1Index]);
-                q2Values.push(userRequestCounts[q2Index]);
-                q3Values.push(userRequestCounts[q3Index]);
-                q90Values.push(userRequestCounts[q90Index]);
-                maxValues.push(userRequestCounts[userRequestCounts.length - 1]);
-                avgValues.push(filteredData[key].metrics.avgRequestsPerUser);
-            } else {
-                minValues.push(0);
-                q1Values.push(0);
-                q2Values.push(0);
-                q3Values.push(0);
-                q90Values.push(0);
-                maxValues.push(0);
-                avgValues.push(0);
-            }
+            minValues.push(dist.min);
+            q1Values.push(dist.q1);
+            q2Values.push(dist.median);
+            q3Values.push(dist.q3);
+            q90Values.push(dist.q90);
+            maxValues.push(dist.max);
+            avgValues.push(filteredData[key].metrics.avgRequestsPerUser);
         });
 
         // Set y-axis max based on 90th percentile (with some padding)
